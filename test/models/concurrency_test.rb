@@ -31,6 +31,60 @@ class ConcurrencyTest < ActiveSupport::TestCase
     assert_equal [ 1, 2, 3, 4, 5 ], voter.votes.order(:slot).pluck(:slot)
   end
 
+  test "merge and a simultaneous cached vote cannot double count a participant" do
+    event = create_event
+    admin = create_participant
+    voter = create_participant
+    source, target = seed_options(event, 2)
+    Voting.cast!(event: event, participant: voter, option_id: source.id)
+    Voting.cast!(event: event, participant: voter, option_id: target.id)
+    gate = Queue.new
+    operations = [
+      -> { OptionMerge.call(event: Event.find(event.id), admin: admin, source_id: source.id, target_id: target.id, reason: "Duplikat") },
+      -> { Voting.cast!(event: Event.find(event.id), participant: Participant.find(voter.id), option_id: source.id) }
+    ]
+    threads = operations.map do |operation|
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          gate.pop
+          operation.call
+        end
+      end
+    end
+    2.times { gate << true }
+    threads.each(&:value)
+    assert_equal 1, voter.votes.where(event: event).count
+    assert_equal target.id, voter.votes.first.option_id
+    assert_equal 4, voter.votes_remaining(event)
+    assert_equal 1, event.audit_entries.where(action: "merge_options").count
+  end
+
+  test "simultaneous repeated merges refund each duplicate only once" do
+    event = create_event
+    admin = create_participant
+    voter = create_participant
+    source, target = seed_options(event, 2)
+    Voting.cast!(event: event, participant: voter, option_id: source.id)
+    Voting.cast!(event: event, participant: voter, option_id: target.id)
+    gate = Queue.new
+    threads = 2.times.map do
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          gate.pop
+          OptionMerge.call(event: Event.find(event.id), admin: admin, source_id: source.id, target_id: target.id, reason: "Duplikat")
+          :merged
+        rescue Voting::Invalid
+          :rejected
+        end
+      end
+    end
+    2.times { gate << true }
+    assert_equal [ :merged, :rejected ], threads.map(&:value).sort
+    assert_equal 1, voter.votes.count
+    assert_equal 4, voter.votes_remaining(event)
+    assert_equal 1, event.audit_entries.where(action: "merge_options").count
+  end
+
   test "simultaneous draw requests produce one board and one audit record" do
     event = create_event
     admin = create_participant

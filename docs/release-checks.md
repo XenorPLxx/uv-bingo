@@ -41,3 +41,12 @@ These are clearly labeled test events. Production has configuration only and has
 - Checked the deployed homepage, voting event, sign-in, live board, presentation and draw reveal: the removed slogans were absent. Checked stored event descriptions and authenticated admin pages separately.
 - Found and corrected the Discord login reply and command description, admin wording for excluded votes, and remaining promotional status labels. Admin instructions now explicitly allow withdrawing votes until the deadline.
 - Disabled Turbo page snapshots so Turbo navigation does not restore old page text or personalized vote counts from its snapshot cache.
+
+## Proposal merging — 5 November 2026
+
+- Added an admin merge form under **Propozycje i wyniki → Połącz propozycje**. The admin chooses the source and retained proposal and supplies a reason.
+- A merge transfers the union of voters. The retained vote wins for duplicate voters; removing their source vote returns exactly one quota slot. Other votes keep their slot and timestamp. Source wording/authorship remains in moderation history, and repeated merges redirect older aliases to the final retained proposal.
+- Merging is limited to eligible proposals from the same event, before a draw. Excluded proposals must be restored first. A saved draw cannot be changed. The source, target, reason, moved votes and refunded slots are recorded in the audit history.
+- Voting pages refresh on moderation revisions, while protecting text being edited. Cached voting requests resolve a merged proposal to the retained proposal.
+- Application suite: 39 tests / 286 assertions. Chrome system suite: 3 tests / 53 assertions. Coverage includes quota refunds and reuse, concurrent merges/voting, chained merges, transaction rollback, permissions, draw snapshots and a second browser refreshing after a merge. RuboCop passes; Brakeman reports no warnings.
+- The nullable merge reference is an additive migration. A staging database backup was taken before deployment.

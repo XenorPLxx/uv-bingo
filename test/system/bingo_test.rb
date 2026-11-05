@@ -15,14 +15,15 @@ class BingoTest < ApplicationSystemTestCase
   end
 
   test "participant can replace a vote at the five vote limit while keeping their option" do
-    seed_options(@event, 6)
+    options = seed_options(@event, 6)
     browser_sign_in(@voter)
     fill_in "Twoja propozycja", with: "Nowe przygody naszej ekipy"
     click_button "Dodaj propozycję +1"
     assert_text "Propozycja dodana z Twoim głosem"
-    4.times do |index|
-      first(:button, "Głosuję +1").click
+    options.first(4).each_with_index do |option, index|
+      within("#option-#{option.id}") { click_button "Głosuję +1" }
       assert_text "Głos zapisany. Pozostało: #{3 - index} z 5."
+      assert_selector "#option-#{option.id}.selected"
     end
     assert_text "Wykorzystano 5 głosów"
     assert_no_button "Głosuję +1"
@@ -42,6 +43,36 @@ class BingoTest < ApplicationSystemTestCase
     assert_selector "h1", text: @event.title
     assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > window.innerWidth")
     save_screenshot(Rails.root.join("tmp/screenshots/voting-mobile.png"))
+  end
+
+  test "admin merges duplicates and an open voting page updates the refunded allowance" do
+    ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
+    source, target = seed_options(@event, 6).first(2)
+    Voting.cast!(event: @event, participant: @voter, option_id: source.id)
+    Voting.cast!(event: @event, participant: @voter, option_id: target.id)
+    browser_sign_in(@voter)
+    Capybara.using_session(:voter_before_merge) do
+      browser_sign_in(@voter)
+      assert_selector ".ballot-count", text: "2/5"
+    end
+    visit admin_event_path(@event)
+    find(".merge-panel > summary").click
+    select "#{source.text} · głosy: 2", from: "Propozycja do połączenia"
+    select "#{target.text} · głosy: 2", from: "Propozycja, która pozostanie"
+    fill_in "Powód połączenia", with: "Dwie wersje tego samego pomysłu"
+    accept_confirm { click_button "Połącz propozycje" }
+    assert_text "Przeniesione głosy: 1. Zwrócone głosy: 1."
+    assert_selector "#moderation-option-#{source.id} .merge-destination", text: target.text
+    assert_no_selector "#moderation-option-#{source.id} .moderation-form"
+    find(".merge-panel > summary").click
+    save_screenshot(Rails.root.join("tmp/screenshots/admin-merge.png"))
+    Capybara.using_session(:voter_before_merge) do
+      assert_selector ".ballot-count", text: "1/5", wait: 20
+      assert_no_selector "#option-#{source.id}"
+      assert_selector "#option-#{target.id}.selected"
+      first(:button, "Głosuję +1").click
+      assert_text "Głos zapisany. Pozostało: 3 z 5."
+    end
   end
 
   test "inline proposals and admin decisions update other viewers from both board views" do

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_05_000100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_05_000200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -92,10 +92,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_000100) do
     t.string "moderation_reason"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "merged_into_id"
     t.index ["event_id", "normalized_text"], name: "index_options_on_event_id_and_normalized_text", unique: true
     t.index ["event_id"], name: "index_options_on_event_id"
     t.index ["id", "event_id"], name: "index_options_on_id_and_event_id", unique: true
+    t.index ["merged_into_id"], name: "index_options_on_merged_into_id"
     t.index ["participant_id"], name: "index_options_on_participant_id"
+    t.check_constraint "merged_into_id IS NULL OR merged_into_id <> id", name: "options_cannot_merge_into_self"
   end
 
   create_table "participants", force: :cascade do |t|
@@ -159,6 +162,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_000100) do
   add_foreign_key "draws", "participants"
   add_foreign_key "login_tokens", "participants"
   add_foreign_key "options", "events"
+  add_foreign_key "options", "options", column: ["merged_into_id", "event_id"], primary_key: ["id", "event_id"], name: "merged_options_same_event"
   add_foreign_key "options", "participants"
   add_foreign_key "proposals", "cells"
   add_foreign_key "proposals", "participants"

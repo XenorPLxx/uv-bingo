@@ -225,6 +225,12 @@
   .event-list-item { display: flex; justify-content: space-between; align-items: center; text-decoration: none; }
   .event-list-item h2 { margin-bottom: 8px; }
   .event-list-item p { font-size: 15px; color: #8992aa; }
+  .merge-panel { margin-top: 22px; padding: 18px; border: 1px solid #a78bfa40; border-radius: 10px; }
+  .merge-panel>summary { color: #c7b5ff; font-weight: 650; }
+  .merge-panel>p, .merge-form { margin-top: 16px; }
+  .merge-form .form-columns>div { min-width: 0; }
+  .moderation-item.merged strong { color: #929cb3; }
+  .merge-destination a { color: #c7b5ff; text-decoration: underline; }
   .moderation-list { margin-top: 20px; }
   .moderation-item { display: grid; grid-template-columns: 1fr auto; gap: 20px; padding: 20px 0; border-top: 1px solid #ffffff10; }
   .moderation-item strong { font-size: 14px; }

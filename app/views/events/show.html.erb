@@ -16,7 +16,7 @@
     <div><span class="status-dot <%= @event.phase == 'open' ? 'active' : '' %>"></span><strong><%= phase_label(@event.phase) %></strong><% if @event.rehearsal? %><span class="tag">PRÓBA GENERALNA</span><% end %></div>
     <span data-countdown-target="label"><%= voting_schedule(@event) %></span>
   </div>
-  <div class="voting-layout" id="options" data-controller="event-status" data-event-status-url-value="<%= state_event_path(@event) %>" data-event-status-phase-value="<%= @event.phase %>">
+  <div class="voting-layout" id="options" data-controller="event-status" data-event-status-url-value="<%= state_event_path(@event) %>" data-event-status-phase-value="<%= @event.phase %>" data-event-status-revision-value="<%= @event.revision %>">
     <section class="options-section">
       <div class="section-title"><div><h2>Propozycje<span class="count-badge"><%= @event.options.eligible.count %></span></h2></div></div>
       <% if @event.description.present? %><p class="section-description"><%= @event.description %></p><% end %>

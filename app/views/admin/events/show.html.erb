@@ -6,5 +6,46 @@
   <% else %><p>Losowanie wybierze 25 propozycji z największą liczbą głosów i rozstrzygnie remisy. Uruchom nagrywanie ekranu przed rozpoczęciem losowania.</p><%= button_to "Losuj planszę ✦", draw_admin_event_path(@event), class: "button primary", disabled: @event.phase != 'closed' || @event.options.eligible.count < 25, form: { data: { turbo_confirm: 'Wylosować ostateczną planszę? Tego działania nie można powtórzyć.' } } %><p class="fineprint">Wymagane: zamknięte głosowanie i co najmniej 25 propozycji z głosami.</p><% end %>
 </section>
 <% unless @event.draw %><details class="panel settings-panel"><summary>Ustawienia i terminy głosowania</summary><%= render "form", event: @event %></details><% end %>
-<section class="panel" id="moderation"><h2>Propozycje i wyniki</h2><p class="muted">Wykluczenie propozycji nie usuwa głosów. Uczestnik może je cofnąć, dopóki głosowanie trwa. Zmiany są zapisywane w historii.</p><div class="moderation-list"><% @options.each do |option| %><div class="moderation-item <%= 'disqualified' if option.disqualified_at %>"><div><strong><%= option.text %></strong><p><%= @counts.fetch(option.id, 0) %> głosów · <%= option.participant.display_name %><%= ' · WYKLUCZONA' if option.disqualified_at %></p></div><% unless @event.draw %><details><summary>Moderuj</summary><%= form_with url: moderate_admin_event_path(@event), class: "moderation-form" do |form| %><%= form.hidden_field :option_id, value: option.id %><%= form.label :text, "Treść (tylko korekta literówki)" %><%= form.text_field :text, value: option.text, maxlength: 100 %><%= form.label :reason, "Powód zmiany" %><%= form.text_field :reason, required: true, minlength: 3, maxlength: 200 %><%= form.select :operation, [['Popraw literówkę', 'correct'], [option.disqualified_at ? 'Przywróć' : 'Wyklucz', option.disqualified_at ? 'restore' : 'disqualify']] %><%= form.submit "Zapisz zmianę", class: "button secondary" %><% end %></details><% end %></div><% end %></div></section>
+<section class="panel" id="moderation">
+  <h2>Propozycje i wyniki</h2>
+  <p class="muted">Wykluczenie propozycji nie usuwa głosów. Uczestnik może je cofnąć, dopóki głosowanie trwa. Zmiany są zapisywane w historii.</p>
+  <% if !@event.draw && @event.state == 'collecting' && @merge_options.size >= 2 %>
+    <details class="merge-panel">
+      <summary>Połącz propozycje</summary>
+      <p class="muted">Głosy trafią do propozycji, która pozostanie na liście. Osoba głosująca na obie zachowa jeden głos, a drugi wróci do jej limitu. Podczas głosowania będzie można wykorzystać go ponownie.</p>
+      <% choices = @merge_options.map { |option| ["#{option.text} · głosy: #{@counts.fetch(option.id, 0)}", option.id] } %>
+      <%= form_with url: merge_admin_event_path(@event), class: "admin-form merge-form", data: { turbo_confirm: "Połączyć wybrane propozycje? Głosy zostaną przeniesione, a podwójne głosy zwrócone. Tej operacji nie można cofnąć." } do |form| %>
+        <div class="form-columns">
+          <div><%= form.label :source_id, "Propozycja do połączenia" %><%= form.select :source_id, choices, { include_blank: "Wybierz propozycję" }, required: true %></div>
+          <div><%= form.label :target_id, "Propozycja, która pozostanie" %><%= form.select :target_id, choices, { include_blank: "Wybierz propozycję" }, required: true %></div>
+        </div>
+        <div><%= form.label :reason, "Powód połączenia" %><%= form.text_field :reason, required: true, minlength: 3, maxlength: 200 %></div>
+        <%= form.submit "Połącz propozycje", class: "button primary" %>
+      <% end %>
+    </details>
+  <% end %>
+  <div class="moderation-list">
+    <% @options.each do |option| %>
+      <div class="moderation-item <%= 'disqualified' if option.disqualified_at %> <%= 'merged' if option.merged_into_id %>" id="moderation-option-<%= option.id %>">
+        <div>
+          <strong><%= option.text %></strong>
+          <p><%= @counts.fetch(option.id, 0) %> głosów · <%= option.participant.display_name %><%= ' · WYKLUCZONA' if option.disqualified_at %></p>
+          <% if option.merged_into %><p class="merge-destination">Połączona z: <%= link_to option.merged_into.text, "#moderation-option-#{option.merged_into_id}" %></p><% end %>
+        </div>
+        <% unless @event.draw || option.merged_into_id %>
+          <details>
+            <summary>Moderuj</summary>
+            <%= form_with url: moderate_admin_event_path(@event), class: "moderation-form" do |form| %>
+              <%= form.hidden_field :option_id, value: option.id %>
+              <%= form.label :text, "Treść (tylko korekta literówki)" %><%= form.text_field :text, value: option.text, maxlength: 100 %>
+              <%= form.label :reason, "Powód zmiany" %><%= form.text_field :reason, required: true, minlength: 3, maxlength: 200 %>
+              <%= form.select :operation, [['Popraw literówkę', 'correct'], [option.disqualified_at ? 'Przywróć' : 'Wyklucz', option.disqualified_at ? 'restore' : 'disqualify']] %>
+              <%= form.submit "Zapisz zmianę", class: "button secondary" %>
+            <% end %>
+          </details>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</section>
 <section class="panel audit-panel"><h2>Historia administracji</h2><% @audits.each do |entry| %><div class="audit-entry"><span><%= entry.created_at.in_time_zone.strftime('%d.%m %H:%M:%S') %></span><strong><%= entry.participant.display_name %> · <%= entry.action %></strong><details><summary>Szczegóły</summary><pre><%= JSON.pretty_generate(entry.details) %></pre></details></div><% end %></section>

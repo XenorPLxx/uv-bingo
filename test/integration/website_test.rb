@@ -142,6 +142,43 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "only admins can merge options and merged sources cannot be restored or drawn" do
+    source, target = seed_options(@event, 2)
+    Voting.cast!(event: @event, participant: @voter, option_id: source.id)
+    Voting.cast!(event: @event, participant: @voter, option_id: target.id)
+    merge_params = { source_id: source.id, target_id: target.id, reason: "Powtórzona propozycja" }
+    sign_in_as(@voter)
+    assert_no_difference "Vote.count" do
+      post merge_admin_event_path(@event), params: merge_params
+      assert_response :forbidden
+    end
+    with_env ADMIN_DISCORD_IDS: @voter.discord_id do
+      get admin_event_path(@event)
+      assert_select ".merge-form"
+      post merge_admin_event_path(@event), params: merge_params
+      assert_redirected_to admin_event_path(@event, anchor: "moderation")
+      assert_equal target.id, source.reload.merged_into_id
+      assert_equal 4, @voter.votes_remaining(@event)
+      get event_path(@event)
+      assert_select "#option-#{source.id}", 0
+      assert_select "#option-#{target.id}.selected", 1
+      get admin_event_path(@event)
+      assert_select "#moderation-option-#{source.id} .merge-destination a[href=?]", "#moderation-option-#{target.id}"
+      assert_select "#moderation-option-#{source.id} .moderation-form", 0
+      post moderate_admin_event_path(@event), params: { option_id: source.id, operation: "restore", reason: "Nie przywracaj" }
+      assert_equal target.id, source.reload.merged_into_id
+      assert_match "została połączona", flash[:alert]
+      25.times { |i| Voting.cast!(event: @event, participant: create_participant, text: "Dodatkowa propozycja #{i}") }
+      @event.update!(closes_at: 1.second.ago)
+      BoardDraw.call(event: @event, admin: @voter)
+      get admin_event_path(@event)
+      assert_select ".merge-form", 0
+      assert_no_difference "AuditEntry.count" do
+        post merge_admin_event_path(@event), params: merge_params
+      end
+    end
+  end
+
   test "server renders user text safely" do
     Voting.cast!(event: @event, participant: @voter, text: '<script>alert("x")</script>')
     get event_path(@event)

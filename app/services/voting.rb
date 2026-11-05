@@ -6,7 +6,9 @@ class Voting
       participant.with_lock do
         raise Invalid, "Głosowanie jest zamknięte." unless event.voting_open?
         if option_id
-          option = event.options.eligible.find(option_id)
+          option = event.options.find(option_id)
+          option = option.merged_into if option.merged_into_id
+          option = event.options.eligible.find(option.id)
           existing = participant.votes.find_by(option: option)
           return existing if existing
         end

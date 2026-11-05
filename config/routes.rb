@@ -25,6 +25,7 @@ Rails.application.routes.draw do
         post :draw
         post :transition
         post :moderate
+        post :merge
         post :mark
       end
     end

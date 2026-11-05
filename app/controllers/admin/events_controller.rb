@@ -22,7 +22,8 @@ module Admin
 
     def show
       @counts = @event.votes.group(:option_id).count
-      @options = @event.options.includes(:participant).sort_by { |option| [ -@counts.fetch(option.id, 0), option.id ] }
+      @options = @event.options.includes(:participant, :merged_into).sort_by { |option| [ -@counts.fetch(option.id, 0), option.id ] }
+      @merge_options = @options.reject { |option| option.disqualified_at || option.merged_into_id }
       @audits = @event.audit_entries.includes(:participant).order(created_at: :desc).limit(100)
     end
 
@@ -60,6 +61,7 @@ module Admin
       @event.with_lock do
         raise Voting::Invalid, "Propozycje są zamrożone po losowaniu." if @event.draw
         option = @event.options.find(params[:option_id])
+        raise Voting::Invalid, "Ta propozycja została połączona z inną." if option.merged_into_id
         reason = params[:reason].to_s.strip
         raise Voting::Invalid, "Podaj powód moderacji (maks. 200 znaków)." unless reason.length.between?(3, 200)
         before = option.attributes.slice("text", "disqualified_at")
@@ -70,8 +72,16 @@ module Admin
         else raise Voting::Invalid, "Nieznana operacja."
         end
         audit!("moderate", { option_id: option.id, before: before, after: option.attributes.slice(*before.keys), reason: reason })
+        @event.increment!(:revision)
       end
+      @event.broadcast_update!
       redirect_to admin_event_path(@event, anchor: "moderation"), notice: "Zmiana zapisana. Uczestnicy mogą cofnąć swoje głosy do końca głosowania."
+    end
+
+    def merge
+      result = OptionMerge.call(event: @event, admin: current_participant, source_id: params[:source_id], target_id: params[:target_id], reason: params[:reason])
+      @event.broadcast_update!
+      redirect_to admin_event_path(@event, anchor: "moderation"), notice: "Propozycje połączone. Przeniesione głosy: #{result[:transferred_votes]}. Zwrócone głosy: #{result[:returned_votes]}.", status: :see_other
     end
 
     def mark

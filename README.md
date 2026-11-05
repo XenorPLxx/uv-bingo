@@ -33,6 +33,7 @@ For local manual testing, create a participant and a single-use token through `b
 - Submissions, votes, and withdrawals require `opens_at <= now < closes_at`, stored in UTC and displayed in Europe/Warsaw.
 - Duplicate text is normalized with Unicode NFKC, whitespace squishing, and case folding. Invalid/duplicate submissions spend nothing.
 - Disqualified options cannot receive more votes or enter the draw. Their existing votes can still be withdrawn by their owners during voting. Admin corrections require a reason and audit record.
+- Before a draw, admins can merge two eligible proposals with a reason. The retained proposal keeps its text and receives the union of voters. A participant who voted for both gets exactly one slot back, reusable while voting is open. Merged source text and authorship remain in admin history, and old voting links resolve to the retained proposal. Merges cannot be undone or performed after the draw.
 - Totals are visible publicly only after the voting window closes. Admins can inspect them earlier.
 - Draws require at least 25 eligible options with votes and a closed window. The top 25 qualify. Equal totals are ordered using seeded SHA-256 keys; the leading option occupies position 12 (center), and the remaining 24 are independently shuffled.
 - Draws store the full eligible snapshot, SHA-256 digest, seed, algorithm version, ordered option IDs, actor and timestamp. Cell text is copied at draw time. Refreshing/replaying never generates another draw. Export is available from the board page.
