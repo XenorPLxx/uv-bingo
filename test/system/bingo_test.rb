@@ -426,6 +426,129 @@ class BingoTest < ApplicationSystemTestCase
     assert_empty page.evaluate_script("window.slides").grep(/typy|propozycje/)
   end
 
+  test "a proposal typed while the previous one saves is kept, and an unchanged one is cleared" do
+    seed_options(@event, 3)
+    browser_sign_in(@voter)
+    # Holds the proposal POST response, or the forced refresh that follows a save, until the test releases it.
+    page.execute_script(<<~JS)
+      window.holdProposal = true;
+      window.originalFetch = window.fetch.bind(window);
+      window.fetch = async (input, options = {}) => {
+        const url = new URL(input, location.origin);
+        if (window.holdState && url.pathname.endsWith('/state') && url.searchParams.has('refresh')) {
+          window.holdState = false;
+          await new Promise(resolve => window.releaseState = resolve);
+        }
+        const response = await window.originalFetch(input, options);
+        if (window.holdProposal && options.method === 'POST' && url.pathname.endsWith('/options')) {
+          await new Promise(resolve => window.releaseProposal = resolve);
+        }
+        return response;
+      };
+    JS
+    hold = -> { Selenium::WebDriver::Wait.new(timeout: 5).until { page.evaluate_script("typeof window.releaseProposal === 'function'") } }
+    fill_in "Twoja propozycja", with: "Pierwsza propozycja"
+    click_button "Dodaj propozycję +1"
+    hold.call
+    fill_in "Twoja propozycja", with: "Druga w trakcie zapisu"
+    page.execute_script("const release = window.releaseProposal; window.releaseProposal = null; release()")
+    assert_selector ".voting-feedback", text: "Pozostało: 4 z 5"
+    assert_field "Twoja propozycja", with: "Druga w trakcie zapisu"
+
+    click_button "Dodaj propozycję +1"
+    hold.call
+    page.execute_script("const release = window.releaseProposal; window.releaseProposal = null; release()")
+    assert_selector ".voting-feedback", text: "Pozostało: 3 z 5"
+    assert_field "Twoja propozycja", with: ""
+
+    # The save can succeed while the refresh that follows is still slow; typing in that gap is kept too.
+    page.execute_script("window.holdProposal = false; window.holdState = true")
+    fill_in "Twoja propozycja", with: "Trzecia propozycja"
+    click_button "Dodaj propozycję +1"
+    Selenium::WebDriver::Wait.new(timeout: 5).until { page.evaluate_script("typeof window.releaseState === 'function'") }
+    Selenium::WebDriver::Wait.new(timeout: 5).until { @event.options.exists?(text: "Trzecia propozycja") }
+    fill_in "Twoja propozycja", with: "Czwarta w trakcie odświeżania"
+    page.execute_script("window.releaseState()")
+    assert_selector ".voting-feedback", text: "Pozostało: 2 z 5"
+    assert_field "Twoja propozycja", with: "Czwarta w trakcie odświeżania"
+    assert_equal [ "Druga w trakcie zapisu", "Pierwsza propozycja", "Trzecia propozycja" ], @event.options.where(participant: @voter).order(:text).pluck(:text)
+  ensure
+    page.execute_script("if (window.originalFetch) window.fetch = window.originalFetch")
+  end
+
+  test "live updates continue while the proposal field keeps focus after typing stops" do
+    options = seed_options(@event, 3)
+    browser_sign_in(@voter)
+    fill_in "Twoja propozycja", with: "Szkic w trakcie"
+    assert_equal "text", page.evaluate_script("document.activeElement.id")
+    Voting.cast!(event: @event, participant: create_participant, option_id: options[2].id)
+    assert_selector "#option-#{options[2].id} .option-count", text: "2", wait: 8
+    assert_equal "text", page.evaluate_script("document.activeElement.id")
+    assert_field "Twoja propozycja", with: "Szkic w trakcie"
+  end
+
+  test "presentation restores hidden suggestions with the matching button label" do
+    seed_options(@event, 25)
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: @voter)
+    @event.update!(state: "live")
+    visit presentation_event_path(@event)
+    click_button "Ukryj propozycje"
+    assert_selector "body.hide-proposals"
+    visit presentation_event_path(@event)
+    assert_selector "body.hide-proposals"
+    assert_button "Pokaż propozycje"
+    click_button "Pokaż propozycje"
+    assert_no_selector "body.hide-proposals"
+    assert_button "Ukryj propozycje"
+  ensure
+    page.execute_script("localStorage.removeItem('hide-proposals')")
+  end
+
+  test "phone voting bar jumps to the ballot and the proposal form" do
+    options = seed_options(@event, 20)
+    browser_sign_in(@voter)
+    mobile_viewport
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "reduce" } ])
+    assert_selector ".voting-bar-ballot strong", text: "0/5"
+    within("#option-#{options[0].id}") { click_button "Głosuję +1" }
+    assert_selector ".voting-bar-ballot strong", text: "1/5"
+    in_view = ->(selector) { page.evaluate_script("(() => { const box = document.querySelector('#{selector}').getBoundingClientRect(); return box.top >= -1 && box.top < innerHeight / 2 })()") }
+    find(".voting-bar-add").click
+    assert_equal "text", page.evaluate_script("document.activeElement.id")
+    assert in_view.call("#add-option-panel"), "The proposal form scrolls into view"
+    find(".voting-bar-ballot").click
+    assert in_view.call("#ballot-panel"), "The ballot scrolls into view"
+    assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > window.innerWidth")
+    page.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+    assert_operator page.evaluate_script("document.querySelector('.voting-bar').getBoundingClientRect().top"), :>=,
+      page.evaluate_script("document.querySelector('.site-footer p').getBoundingClientRect().bottom"), "The bar never covers the end of the page"
+    save_screenshot(Rails.root.join("tmp/screenshots/voting-bar-mobile.png"))
+    desktop_viewport
+    assert_no_selector ".voting-bar"
+  end
+
+  test "phone board heading is compact with secondary actions in a menu and visible cell focus" do
+    seed_options(@event, 25)
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: @voter)
+    @event.update!(state: "live")
+    browser_sign_in(@voter)
+    mobile_viewport
+    assert_no_selector ".flash"
+    assert_operator page.evaluate_script("document.querySelector('.bingo-cell').getBoundingClientRect().top"), :<, 380
+    assert_no_link "Zapis losowania ↓"
+    find(".heading-menu > summary").click
+    assert_link "Tryb prezentacji ↗"
+    assert_link "Zapis losowania ↓"
+    save_screenshot(Rails.root.join("tmp/screenshots/board-phone-menu.png"))
+    page.driver.browser.action.send_keys(:escape).perform
+    assert_no_link "Zapis losowania ↓"
+    page.driver.browser.action.send_keys(:tab).perform
+    assert_equal "0", page.evaluate_script("document.activeElement.closest('.bingo-cell')?.dataset.position")
+    assert_equal "solid", page.evaluate_script("getComputedStyle(document.querySelector('.bingo-cell[data-position=\"0\"]')).outlineStyle")
+  end
+
   test "phone board shows all five columns and tapping a cell opens its details and controls" do
     ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
     options = seed_options(@event, 25)

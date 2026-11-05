@@ -26,9 +26,14 @@ export default class extends Controller {
     }, 15000)
     this.visibility = () => { if (!document.hidden) this.refresh() }
     document.addEventListener("visibilitychange", this.visibility)
+    this.typedAt = 0
+    // Synthetic input events from restoring drafts are not typing.
+    this.noteTyping = event => { if (event.isTrusted && event.target !== this.searchTarget) this.typedAt = Date.now() }
+    this.element.addEventListener("input", this.noteTyping)
   }
 
   disconnect() {
+    this.element.removeEventListener("input", this.noteTyping)
     clearInterval(this.timer)
     clearTimeout(this.searchTimer)
     clearTimeout(this.pushTimer)
@@ -55,7 +60,7 @@ export default class extends Controller {
   async refresh() {
     if (document.hidden || !this.element.isConnected) return true // The visibility handler catches up.
     if (this.saving || this.activeSearch || this.searchPending || this.refreshPromise) return false
-    if (document.activeElement !== this.searchTarget && this.element.contains(document.activeElement) && document.activeElement.matches("textarea, input:not([type=submit])")) return false
+    if (this.typing) return false
     this.refreshPromise = this.readState({ force: this.searchError || this.query !== this.appliedQuery }).catch(() => {
       // Retry on the next poll. The server always checks voting dates and limits.
     }).finally(() => { this.refreshPromise = null })
@@ -64,6 +69,20 @@ export default class extends Controller {
   }
 
   get query() { return this.searchTarget.value.slice(0, 100) }
+
+  // Refreshes keep drafts, so they only wait while someone is actively typing outside the search field.
+  get typing() {
+    const field = document.activeElement
+    return field !== this.searchTarget && this.element.contains(field) && field.matches("textarea, input:not([type=submit])") && Date.now() - this.typedAt < 2000
+  }
+
+  // The phone voting bar jumps to the ballot or the proposal form.
+  jump(event) {
+    const panel = document.getElementById(event.currentTarget.dataset.jumpTo)
+    if (!panel) return
+    panel.scrollIntoView({ block: "start" })
+    panel.querySelector("textarea")?.focus({ preventScroll: true })
+  }
 
   queueSearch(event) {
     clearTimeout(this.searchTimer)
@@ -123,6 +142,7 @@ export default class extends Controller {
     if (this.saving) return
     const form = event.currentTarget
     const submittedQueryVersion = this.queryVersion
+    const submittedDraft = form.querySelector("textarea")?.value
     this.saving = true
     this.activeSearch = null
     this.optionsTarget.removeAttribute("aria-busy")
@@ -158,7 +178,7 @@ export default class extends Controller {
     }
 
     this.searchError = false
-    const update = { force: true, mutation: true, feedback, clearDraft, excludedOptionId: form.dataset.optionId }
+    const update = { force: true, mutation: true, feedback, clearDraft, submittedDraft, excludedOptionId: form.dataset.optionId }
     try {
       await this.readState(update)
     } catch (_) {
@@ -207,12 +227,15 @@ export default class extends Controller {
     }
   }
 
-  updateVoting(voting, { feedback, clearDraft = false, excludedOptionId, search = false, clearSearchError = false } = {}) {
+  updateVoting(voting, { feedback, clearDraft = false, submittedDraft, excludedOptionId, search = false, clearSearchError = false } = {}) {
     if (!this.element.isConnected || (!voting && !feedback && !clearSearchError)) return
     const viewport = this.captureViewport(excludedOptionId, search)
     const focused = document.activeElement
     const input = this.addOptionTarget.querySelector("textarea")
     if (input) this.draft = input.value
+    // Compare at the moment of clearing: the follow-up refresh can arrive well after the save,
+    // and anything typed in the meantime is a new draft.
+    clearDraft = clearDraft && this.draft === submittedDraft
     if (clearDraft) this.draft = ""
 
     const rowsBefore = voting && !search ? this.snapshotRows() : null

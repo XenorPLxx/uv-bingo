@@ -12,7 +12,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     raw = LoginToken.issue!(participant: participant, interaction_id: SecureRandom.uuid)
     visit "/login?token=#{raw}"
     click_button "Zaloguj się"
-    assert_text "Zalogowano."
+    assert_selector ".user-name", text: participant.display_name, visible: :all
   end
 
   def mobile_viewport(width: 390, height: 844)

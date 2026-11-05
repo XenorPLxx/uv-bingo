@@ -1,4 +1,22 @@
-<div class="panel-heading"><h2>Twoje głosy</h2><span class="ballot-count"><%= current_participant ? 5 - @remaining : 0 %><small>/5</small></span></div>
+<% used = current_participant ? 5 - @remaining : 0 %>
+<div class="panel-heading"><h2>Twoje głosy</h2><span class="ballot-count"><%= used %><small>/5</small></span></div>
 <p class="muted">Maksymalnie 5 różnych propozycji. Głos możesz cofnąć do końca głosowania.</p>
-<ol class="ballot-slots"><% 5.times do |slot| %><% vote = @my_votes&.[](slot) %><li class="<%= 'filled' if vote %>"><span><%= vote ? '✓' : format('%02d', slot + 1) %></span><span class="ballot-text"><%= vote ? vote.option.text : 'Niewykorzystany głos' %></span><% if vote && @event.voting_open? %><%= button_to "×", event_vote_path(@event, vote), method: :delete, params: { q: @query.presence }, class: "ballot-remove", id: "ballot-#{vote.option_id}-remove", form: { data: { action: "submit->event-status#submit", option_id: vote.option_id } }, aria: { label: "Cofnij głos: #{vote.option.text}" } %><% end %></li><% end %></ol>
+<ol class="ballot-slots">
+  <% 5.times do |slot| %>
+    <% vote = @my_votes&.[](slot); excluded = vote&.option&.disqualified_at %>
+    <li class="<%= 'filled' if vote %> <%= 'excluded' if excluded %>">
+      <span><%= vote ? (excluded ? '!' : '✓') : format('%02d', slot + 1) %></span>
+      <span class="ballot-text"><%= vote ? vote.option.text : 'Niewykorzystany głos' %><% if excluded %><span class="ballot-excluded"><span class="tag status-tag">WYKLUCZONA</span> <%= vote.option.moderation_reason %></span><% end %></span>
+      <% if vote && @event.voting_open? %><%= button_to "×", event_vote_path(@event, vote), method: :delete, params: { q: @query.presence }, class: "ballot-remove", id: "ballot-#{vote.option_id}-remove", form: { data: { action: "submit->event-status#submit", option_id: vote.option_id } }, aria: { label: "Cofnij głos: #{vote.option.text}" } %><% end %>
+    </li>
+  <% end %>
+</ol>
 <% unless current_participant %><%= link_to "Zaloguj się", sign_in_path, class: "button primary wide" %><% end %>
+<nav class="voting-bar" aria-label="Skróty głosowania">
+  <button type="button" class="voting-bar-ballot" data-action="event-status#jump" data-jump-to="ballot-panel">Twoje głosy <strong><%= used %>/5</strong></button>
+  <% if @can_add_option %>
+    <button type="button" class="voting-bar-add" data-action="event-status#jump" data-jump-to="add-option-panel">+ Dodaj</button>
+  <% elsif !current_participant %>
+    <%= link_to "Zaloguj się", sign_in_path, class: "voting-bar-add" %>
+  <% end %>
+</nav>

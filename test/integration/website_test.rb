@@ -29,6 +29,8 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match @voter.display_name, response.body
     post confirm_login_path
+    assert_redirected_to root_path
+    assert_nil flash[:notice], "The navigation already shows the signed-in name"
     assert LoginToken.last.consumed_at
     assert_equal 1, @voter.sessions.active.count
     post event_options_path(@event), params: { text: "Mój typ" }
@@ -388,6 +390,8 @@ class WebsiteTest < ActionDispatch::IntegrationTest
 
     get event_path(@event)
     assert_select "[data-position='#{picked_cell.position}'] .cell-number", /2 głosy/
+    assert_select "details.heading-menu a[href=?]", presentation_event_path(@event)
+    assert_select "details.heading-menu a[href=?]", draw_record_event_path(@event)
     assert_select ".pick-star, template.cell-voters, .rankings", 0
 
     sign_in_as(@voter)
@@ -445,6 +449,27 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     assert_select "template.cell-voters li", "Prywatna nazwa autora"
     get state_event_path(@event), params: { refresh: "1" }
     assert_includes response.parsed_body.fetch("html"), "Prywatna nazwa autora"
+  end
+
+  test "the ballot marks excluded votes and the phone bar summarizes voting" do
+    option, kept = seed_options(@event, 2)
+    get event_path(@event)
+    assert_select "nav.voting-bar .voting-bar-ballot", /Twoje głosy\s*0\/5/
+    assert_select "nav.voting-bar a.voting-bar-add[href=?]", sign_in_path
+
+    sign_in_as(@voter)
+    [ option, kept ].each { |choice| Voting.cast!(event: @event, participant: @voter, option_id: choice.id) }
+    option.update!(disqualified_at: Time.current, moderation_reason: "Poza tematem gali")
+    get event_path(@event)
+    assert_select ".ballot-slots li.excluded", 1
+    assert_select ".ballot-slots li.excluded .ballot-text", /#{option.text}/
+    assert_select ".ballot-slots li.excluded .ballot-excluded", /WYKLUCZONA\s*Poza tematem gali/
+    assert_select ".ballot-slots li.excluded form[action=?] button.ballot-remove", event_vote_path(@event, @voter.votes.find_by!(option: option))
+    assert_select ".ballot-slots li.filled:not(.excluded)", 1
+    assert_select "nav.voting-bar .voting-bar-ballot", /Twoje głosy\s*2\/5/
+    assert_select "nav.voting-bar button.voting-bar-add[data-jump-to=add-option-panel]"
+    assert_select "#ballot-panel nav.voting-bar"
+    assert_select "#add-option-panel textarea"
   end
 
   test "event deletion requires admin access and exact typed confirmation" do

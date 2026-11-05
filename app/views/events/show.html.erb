@@ -24,10 +24,10 @@
         <div data-event-status-target="options"><%= render "events/voting_options" %></div>
       </section>
       <aside class="voting-sidebar" data-event-status-target="sidebar">
-        <section class="panel ballot-panel" data-event-status-target="ballot">
+        <section class="panel ballot-panel" id="ballot-panel" data-event-status-target="ballot">
           <%= render "events/ballot" %>
         </section>
-        <section class="panel add-panel" data-event-status-target="addOption"><%= render "events/add_option" %>
+        <section class="panel add-panel" id="add-option-panel" data-event-status-target="addOption"><%= render "events/add_option" %>
         </section>
         <div class="how-it-works"><h2>Tworzenie planszy</h2><p>Na planszę trafi 25 propozycji z największą liczbą głosów. Pierwsza zajmie środek, a pozostałe pola zostaną rozmieszczone losowo. Remisy rozstrzyga losowanie.</p></div>
       </aside>
