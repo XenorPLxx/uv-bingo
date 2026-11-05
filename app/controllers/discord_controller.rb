@@ -38,7 +38,7 @@ class DiscordController < ActionController::Base
   rescue ActiveRecord::RecordNotUnique
     private_reply("Żądanie zostało już obsłużone. Użyj komendy ponownie, jeśli potrzebujesz nowego linku.")
   rescue DiscordInteractionRelay::Unavailable => error
-    Rails.logger.error("Staging Discord relay unavailable: #{error.class}")
+    Rails.logger.error("Staging Discord relay unavailable: #{error.message}")
     private_reply("Logowanie do środowiska testowego jest chwilowo niedostępne. Spróbuj ponownie.")
   end
 

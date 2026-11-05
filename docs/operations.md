@@ -89,4 +89,4 @@ Trial setup is explicit and idempotent; it is not part of normal deployment or d
 
 Rerunning setup preserves existing votes, dates, draw records and marks. Adjust trial dates in admin when needed; archive/delete the test events when the trial ends, then create a fresh real event for TGA.
 
-After the bot is installed in the UV community server, run `bin/discord-register production` and test `/bingo` in thread `1439938011650592859`. The website and public demo can be released before that installation; new community sign-ins require it.
+Run `bin/discord-register production global` to pre-register the server-only `/bingo` command. After the bot is installed in the UV community server, test `/bingo` in thread `1439938011650592859`; no further registration is required. The website and public demo can be released before that installation; new community sign-ins require it.

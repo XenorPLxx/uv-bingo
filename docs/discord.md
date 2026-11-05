@@ -11,11 +11,11 @@ Application ID: `1567880594380030002`. The bot user is **TGA Bingo**. The same a
 
 1. Keep the app installed in the private test server. Install it in the UV community server using the `bot` and `applications.commands` scopes. Administrator and message-content permissions are unnecessary. For the trial thread, allow the app/channel permissions needed to use application commands; private threads may also require an invitation.
 2. Keep the existing public app ID/key and setup bot token in local `.envrc.staging` and `.envrc.production` files, mode 600. Each destination uses its own `DISCORD_GUILD_ID`, `DISCORD_CHANNEL_ID`, `ADMIN_DISCORD_IDS`, database password and session secret. The setup bot token is never deployed into the Rails container.
-3. Run `bin/discord-register staging` for the private server. After the community installation is complete, run `bin/discord-register production`. These upsert only this app's `/bingo` command in the corresponding server and do not post messages.
+3. Run `bin/discord-register staging` for the private server. Run `bin/discord-register production global` to pre-register `/bingo` for server installations (`integration_types: [0]`, `contexts: [0]`), including before the community invite. The global command is unavailable in DMs/user installations, and runtime still accepts only the two configured servers. These commands upsert only this app's `/bingo` command and do not post messages.
 4. After production is healthy, set its shared interactions endpoint. Source `.envrc.production` and run `bundle exec ruby script/configure_discord_endpoint.rb https://bingo.xenor.ovh/discord/interactions`. Discord verifies a signed PING before accepting the change.
 5. Run `/bingo` in the appropriate server. The private reply contains a single-use login button valid for ten minutes; the website asks for confirmation of the named account. Staging additionally requires HTTP credentials. Production does not use Basic Auth.
 
-Community installation may be completed after the website launch. Until installation and production command registration are complete, community members can view the trial pages but cannot obtain new production login links through `/bingo`.
+Community installation may be completed after the website launch. The server-only global command can be registered beforehand; installing the app then makes it available without another registration step. Until installation is complete, community members can view the trial pages but cannot obtain new production login links through `/bingo`.
 
 ## Routing and verification
 
