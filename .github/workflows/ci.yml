@@ -26,7 +26,8 @@ jobs:
       - run: bundle exec brakeman --quiet --no-pager
       - run: bin/bundler-audit
       - run: bin/importmap audit
-      - run: bin/rails test test:system
+      - run: bin/rails test
+      - run: bin/rails test:system
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

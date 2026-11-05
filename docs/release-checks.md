@@ -10,6 +10,7 @@ Verified:
 - Pages, assets and `/cable` reject requests without staging Basic Auth. The minimal health check remains available. Unsigned webhook requests are rejected.
 - Discord validated the public interaction endpoint. The user confirmed successful `/bingo` sign-in from the configured test channel.
 - A separate live verification board accepted 50 simultaneous WebSocket subscriptions in approximately 4.9 seconds. All 50 received a committed board update through Solid Cable/PostgreSQL.
+- Saved draw records survived the final Kamal redeploy unchanged. Runtime release: `42d933d`.
 - A staging backup restored successfully into an isolated local PostgreSQL 17 database: one event, 30 options, 30 votes in that snapshot. The temporary restore database was removed afterward.
 
 Rehearsal voting event: `/e/tga-2026-proba`.
