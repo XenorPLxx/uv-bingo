@@ -11,7 +11,7 @@ class Voting
           return existing if existing
         end
         available_slot = ((1..5).to_a - participant.votes.where(event: event).pluck(:slot)).first
-        raise Invalid, "Wykorzystano wszystkie 5 głosów. Cofnij jeden, aby wybrać inny typ." unless available_slot
+        raise Invalid, "Wykorzystano wszystkie 5 głosów. Cofnij jeden, aby wybrać inną propozycję." unless available_slot
         option ||= event.options.create!(participant: participant, text: text)
         Vote.create!(event: event, participant: participant, option: option, slot: available_slot)
       end

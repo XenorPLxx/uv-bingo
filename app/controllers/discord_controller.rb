@@ -19,7 +19,7 @@ class DiscordController < ActionController::Base
     participant.update!(display_name: display_name(payload, user))
     raw = LoginToken.issue!(participant: participant, interaction_id: payload.fetch("id"))
     url = "#{ENV.fetch('APP_URL')}/login?token=#{raw}"
-    private_reply("Twoja plansza czeka! Link działa przez 10 minut. Głosy są przypisane do Twojego konta Discord.",
+    private_reply("Link do logowania jest ważny przez 10 minut. Głosy są przypisane do konta Discord.",
       components: [ { type: 1, components: [ { type: 2, style: 5, label: "Otwórz UV Bingo", url: url } ] } ])
   rescue JSON::ParserError, KeyError
     head :bad_request

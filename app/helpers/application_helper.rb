@@ -1,7 +1,7 @@
 module ApplicationHelper
   def phase_label(phase)
-    { "scheduled" => "Start już wkrótce", "open" => "Głosowanie trwa", "closed" => "Głosowanie zakończone",
-      "drawn" => "Plansza gotowa", "live" => "Gramy na żywo", "archived" => "Zakończone" }.fetch(phase)
+    { "scheduled" => "Głosowanie zaplanowane", "open" => "Głosowanie trwa", "closed" => "Głosowanie zakończone",
+      "drawn" => "Plansza gotowa", "live" => "Plansza na żywo", "archived" => "Zakończone" }.fetch(phase)
   end
 
   def voting_schedule(event)

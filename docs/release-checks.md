@@ -35,3 +35,9 @@ These are clearly labeled test events. Production has configuration only and has
 - Proposals use one compact row per item on every screen size, with the vote action on the right. Text wraps on narrow screens and mobile actions retain a 44px touch target.
 - Application suite: 31 tests / 188 assertions. Existing Chrome journeys: 2 tests / 39 assertions, including voting, withdrawal, desktop/mobile layout and live updates. RuboCop passes.
 - Generated `docs/branding/discord-avatar.png` with the built-in image_gen tool; saved the full prompt alongside it. Applied and read back both the staging Discord application icon and bot avatar successfully.
+
+## Copy audit follow-up — 5 November 2026
+
+- Checked the deployed homepage, voting event, sign-in, live board, presentation and draw reveal: the removed slogans were absent. Checked stored event descriptions and authenticated admin pages separately.
+- Found and corrected the Discord login reply and command description, admin wording for excluded votes, and remaining promotional status labels. Admin instructions now explicitly allow withdrawing votes until the deadline.
+- Disabled Turbo page snapshots so Turbo navigation does not restore old page text or personalized vote counts from its snapshot cache.
