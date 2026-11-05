@@ -385,6 +385,47 @@ class BingoTest < ApplicationSystemTestCase
     assert_selector "#option-#{option.id} .option-count", text: "2", wait: 5
   end
 
+  test "rankings fade in, re-sort with a slide and pulse changed scores" do
+    options = seed_options(@event, 25)
+    [ 0, 1 ].each { |index| Voting.cast!(event: @event, participant: @voter, option_id: options[index].id) }
+    admin = create_participant
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: admin)
+    @event.update!(state: "live")
+    confirm = ->(*indexes) do
+      indexes.each { |index| BoardActions.mark!(cell: @event.cells.find_by!(option: options[index]), admin: admin, mark: "cross", revision: 0) }
+      @event.reload.broadcast_update!
+    end
+    browser_sign_in(@voter)
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "no-preference" } ])
+    page.execute_script("window.slides = []; const animate = Element.prototype.animate; Element.prototype.animate = function(...args) { window.slides.push(this.dataset.key || this.id); return animate.apply(this, args) }")
+    assert_text "POŁĄCZONO NA ŻYWO"
+    assert_no_selector ".rankings"
+
+    confirm.call(5)
+    assert_selector ".ranking-list > li.ranking-new", count: 2
+
+    confirm.call(0)
+    mine = "li[data-key='typy-#{@voter.id}']"
+    assert_selector "#{mine}.ranking-new.mine"
+    assert_selector ".ranking-list > li:not(.ranking-new)", count: 2
+
+    # Two hits move the viewer above the others with one.
+    confirm.call(1)
+    assert_selector "#{mine}.ranking-up .ranking-score", text: "2 trafienia"
+    assert_equal "1.", find("#{mine} .ranking-rank").text
+    assert_includes page.evaluate_script("window.slides"), "typy-#{@voter.id}"
+    page.execute_script("document.querySelector('.rankings').scrollIntoView({block: 'center', behavior: 'instant'})")
+    save_screenshot(Rails.root.join("tmp/screenshots/rankings-animation.png"))
+
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "reduce" } ])
+    page.execute_script("window.slides = []")
+    BoardActions.mark!(cell: @event.cells.find_by!(option: options[1]), admin: admin, mark: "blank", revision: 1)
+    @event.reload.broadcast_update!
+    assert_selector "#{mine}.ranking-down .ranking-score", text: "1 trafienie"
+    assert_empty page.evaluate_script("window.slides").grep(/typy|propozycje/)
+  end
+
   test "phone board shows all five columns and tapping a cell opens its details and controls" do
     ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
     options = seed_options(@event, 25)

@@ -112,7 +112,11 @@ export default class extends Controller {
       winning: cell.classList.contains("winning-cell"),
       counts: this.counts(cell)
     }]))
-    return { cells, lines: Number(this.contentTarget.querySelector(".bingo-celebration")?.dataset.lines || 0) }
+    const rankings = new Map(Array.from(this.contentTarget.querySelectorAll(".ranking-list > li[data-key]"), row => [row.dataset.key, {
+      top: this.offsetInList(row),
+      score: Number(row.dataset.score)
+    }]))
+    return { cells, rankings, lines: Number(this.contentTarget.querySelector(".bingo-celebration")?.dataset.lines || 0) }
   }
 
   counts(cell) {
@@ -143,6 +147,37 @@ export default class extends Controller {
     }
     const celebration = this.contentTarget.querySelector(".bingo-celebration")
     if (celebration && Number(celebration.dataset.lines) > before.lines) celebration.classList.add("celebrate")
+    this.animateRankings(before.rankings)
+  }
+
+  // Measured within its list, so content appearing above the rankings does not count as movement.
+  offsetInList(row) {
+    return row.getBoundingClientRect().top - row.parentElement.getBoundingClientRect().top
+  }
+
+  // Ranking rows slide to their new places, changed scores pulse and new entries fade in.
+  animateRankings(before) {
+    const motion = !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    // New entries wait for existing rows to open a gap, unless the rankings are appearing for the first time.
+    const settle = before.size ? 300 : 0
+    let added = 0
+    for (const row of this.contentTarget.querySelectorAll(".ranking-list > li[data-key]")) {
+      const previous = before.get(row.dataset.key)
+      if (!previous) {
+        row.style.setProperty("--ranking-delay", `${settle + added++ * 70}ms`)
+        row.classList.add("ranking-new")
+        continue
+      }
+      const score = Number(row.dataset.score)
+      if (score !== previous.score) row.classList.add(score > previous.score ? "ranking-up" : "ranking-down")
+      const shift = previous.top - this.offsetInList(row)
+      if (!motion || Math.abs(shift) < 1) continue
+      // Rows climbing the ranking pass over the ones they overtake.
+      if (shift > 0) row.classList.add("rising")
+      row.animate([{ transform: `translateY(${shift}px)` }, { transform: "none" }], {
+        duration: Math.min(900, 450 + Math.abs(shift) / 3), easing: "cubic-bezier(.2,.8,.2,1)"
+      }).finished.then(() => row.classList.remove("rising"), () => {})
+    }
   }
 
   openCell(event) {
