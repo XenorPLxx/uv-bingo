@@ -1,6 +1,6 @@
 # First staging release — 5 November 2026
 
-Staging: https://bing.testing.xenor.ovh
+Staging: https://bingo.testing.xenor.ovh
 
 Verified:
 
@@ -106,3 +106,11 @@ These are clearly labeled test events. Production has configuration only and has
 - Reproduced a second-login failure: the participant uniqueness validator rejected the insert before `create_or_find_by!` could resolve the existing account. Account uniqueness remains enforced by PostgreSQL; removing the redundant validator lets Rails return the existing account and safely resolve simultaneous sign-ins.
 - Added signed-interaction regressions for returning members, new links on repeated commands, retained votes/account identity, updated display names and simultaneous first sign-ins. Application suite: 66 tests / 657 assertions; RuboCop passes. No database migration is required.
 - Confirmed installation in both Discord servers and registered `/bingo` directly in the production server, alongside its existing global command. The configured community trial thread was archived when checked; it must be reopened to use commands there.
+
+## Search review and staging spelling — 5 November 2026
+
+- Timed-out searches show the existing local error, release the busy status and retry on the normal poll, including when the query has not changed. Superseded searches, voting interruptions and navigation still discard intentional cancellations.
+- Background polling continues while the search field has focus, preserving the query, caret, proposal draft and viewport. Other text fields still pause background refreshes.
+- Added horizontal input padding and a matching autofill background/text color; the focus border remains around the entire search bar. Proposal and empty-result headings now use level two beneath the event title. Removed the unused `option_count` response and its extra count query.
+- Staging uses `bingo.testing.xenor.ovh`, with HTTP authentication and the previous `bing.testing.xenor.ovh` / `uv-bingo.testing.xenor.ovh` aliases. Production remains `bingo.xenor.ovh`; its private-server Discord relay uses the corrected staging address.
+- Application suite: 66 tests / 658 assertions. Chrome suite: 12 tests / 216 assertions. New checks exercise the actual eight-second abort, recovery through the normal fifteen-second poll with focus retained, another participant's vote while search stays focused, and Chrome's forced autofill state. RuboCop passes; Brakeman reports no warnings.

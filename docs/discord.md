@@ -5,7 +5,7 @@ Application ID: `1567880594380030002`. The bot user is **TGA Bingo**. The same a
 | Destination | Discord server | Trial channel/thread | Login website |
 | --- | --- | --- | --- |
 | Production | `1020591115407196201` | `1439938011650592859` | https://bingo.xenor.ovh |
-| Staging | `725336022657007788` | `1567883334703390893` | https://bing.testing.xenor.ovh |
+| Staging | `725336022657007788` | `1567883334703390893` | https://bingo.testing.xenor.ovh |
 
 ## Installation and commands
 
@@ -29,4 +29,4 @@ Returning members reuse the account identified by their Discord ID and receive a
 
 `/bingo` uses HTTP interactions rather than a Gateway connection; the bot can appear offline while commands work. The webhook is the only app route that bypasses staging HTTP authentication and always verifies Discord signatures. Signed PING requests have no server ID and are handled before guild routing.
 
-Legacy links on `uv-bingo.testing.xenor.ovh` remain usable, but browser sessions are scoped to each hostname. Use a fresh `/bingo` link for `bing.testing.xenor.ovh`.
+Legacy links on `bing.testing.xenor.ovh` and `uv-bingo.testing.xenor.ovh` remain usable, but browser sessions are scoped to each hostname. Use a fresh `/bingo` link for `bingo.testing.xenor.ovh`.

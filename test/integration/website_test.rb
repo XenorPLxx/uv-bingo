@@ -160,7 +160,8 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     assert_equal "2", rows.at_css(".option-count").text
     assert_includes fragments.fetch("ballot"), "1<small>/5</small>"
     assert_equal true, fragments.fetch("can_add")
-    assert_equal 6, fragments.fetch("option_count")
+    assert_not fragments.key?("option_count")
+    assert_equal options.last.text, rows.at_css(".option-card h2").text.delete_suffix(" (Twój głos)")
     current_revision = response.parsed_body.fetch("revision")
     get state_event_path(@event), params: { revision: current_revision, phase: "open" }
     assert_nil response.parsed_body["voting"]

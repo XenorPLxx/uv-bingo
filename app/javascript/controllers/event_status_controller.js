@@ -27,8 +27,8 @@ export default class extends Controller {
 
   async refresh() {
     if (document.hidden || this.saving || this.activeSearch || this.searchPending || this.refreshPromise || !this.element.isConnected) return
-    if (this.element.contains(document.activeElement) && document.activeElement.matches("textarea, input:not([type=submit])")) return
-    this.refreshPromise = this.readState({ force: this.query !== this.appliedQuery }).catch(() => {
+    if (document.activeElement !== this.searchTarget && this.element.contains(document.activeElement) && document.activeElement.matches("textarea, input:not([type=submit])")) return
+    this.refreshPromise = this.readState({ force: this.searchError || this.query !== this.appliedQuery }).catch(() => {
       // Retry on the next poll. The server always checks voting dates and limits.
     }).finally(() => { this.refreshPromise = null })
     await this.refreshPromise
@@ -63,8 +63,8 @@ export default class extends Controller {
     this.searchStatusTarget.textContent = "Wyszukiwanie…"
     try {
       await this.readState({ force: true, search: true })
-    } catch (error) {
-      if (error.name !== "AbortError" && this.activeSearch === task && version === this.queryVersion && this.element.isConnected) {
+    } catch (_) {
+      if (this.activeSearch === task && version === this.queryVersion && this.element.isConnected) {
         this.searchError = true
         this.updateVoting(null, { search: true, feedback: { message: "Nie udało się odświeżyć wyników. Spróbuj ponownie.", failed: true } })
         this.searchStatusTarget.textContent = "Nie udało się odświeżyć wyników."

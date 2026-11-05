@@ -143,6 +143,82 @@ class SearchTest < ApplicationSystemTestCase
     page.execute_script("window.releaseVotingRefresh?.(); if(window.searchOriginalFetch) window.fetch=window.searchOriginalFetch")
   end
 
+  test "a timed out search reports failure and polling retries while search retains focus" do
+    fill_in "Szukaj propozycji", with: "gabe"
+    assert_selector "#option-#{@gabe.id}"
+    page.execute_script(<<~JS)
+      window.searchOriginalFetch = window.fetch.bind(window);
+      window.hangSearch = true;
+      window.fetch = (input, options={}) => {
+        const url = new URL(input, location.origin);
+        if (url.pathname.endsWith('/state') && url.searchParams.get('q') === 'wiedź' && window.hangSearch) {
+          return new Promise((resolve,reject) => options.signal.addEventListener('abort', () => reject(new DOMException('Timed out', 'AbortError')), {once:true}));
+        }
+        return window.searchOriginalFetch(input, options);
+      };
+    JS
+    fill_in "Szukaj propozycji", with: "wiedź"
+    assert_selector ".voting-feedback .alert", text: "Nie udało się odświeżyć wyników", wait: 12
+    assert_selector "[data-event-status-target=searchStatus]", text: "Nie udało się odświeżyć wyników.", visible: :all
+    assert_selector "#option-#{@gabe.id}"
+    assert_no_selector "[data-event-status-target=options][aria-busy=true]"
+    assert_equal "q", page.evaluate_script("document.activeElement.id")
+    page.execute_script("window.hangSearch=false")
+    assert_selector ".option-card", count: 2, wait: 20
+    assert_selector "#option-#{@witcher.id}"
+    assert_selector "#option-#{@announcement.id}"
+    assert_no_selector ".voting-feedback .alert"
+    assert_selector "[data-event-status-target=searchStatus]", text: "Wyniki: 2.", visible: :all
+    assert_equal "q", page.evaluate_script("document.activeElement.id")
+    assert_current_path event_path(@event, q: "wiedź")
+    assert_equal "original", page.evaluate_script("window.searchDocument")
+  ensure
+    page.execute_script("if(window.searchOriginalFetch) window.fetch=window.searchOriginalFetch")
+  end
+
+  test "other members votes refresh while search stays focused without replacing an unfinished proposal" do
+    fill_in "Twoja propozycja", with: "Niedokończony pomysł"
+    fill_in "Szukaj propozycji", with: "wiedź"
+    assert_selector ".option-card", count: 2
+    assert_selector "#option-#{@witcher.id} .option-count", text: "0"
+    Voting.cast!(event: @event, participant: create_participant, option_id: @witcher.id)
+    assert_selector "#option-#{@witcher.id} .option-count", text: "1", wait: 20
+    assert_equal "q", page.evaluate_script("document.activeElement.id")
+    assert_field "Szukaj propozycji", with: "wiedź"
+    assert_field "Twoja propozycja", with: "Niedokończony pomysł"
+    assert_current_path event_path(@event, q: "wiedź")
+    assert_equal "original", page.evaluate_script("window.searchDocument")
+  end
+
+  test "browser autofill keeps the search background and horizontal text spacing" do
+    fill_in "Szukaj propozycji", with: "wiedź"
+    assert_selector ".option-card", count: 2
+    browser = page.driver.browser
+    browser.execute_cdp("DOM.enable")
+    browser.execute_cdp("CSS.enable")
+    root = browser.execute_cdp("DOM.getDocument").fetch("root").fetch("nodeId")
+    node = browser.execute_cdp("DOM.querySelector", nodeId: root, selector: "input[type=search]").fetch("nodeId")
+    browser.execute_cdp("CSS.forcePseudoState", nodeId: node, forcedPseudoClasses: [ "autofill" ])
+    assert page.evaluate_script("document.querySelector('input[type=search]').matches(':autofill')")
+    styles = page.evaluate_script(<<~JS)
+      (()=>{
+        const input=getComputedStyle(document.querySelector('input[type=search]'));
+        return {shadow:input.boxShadow,left:parseFloat(input.paddingLeft),right:parseFloat(input.paddingRight),radius:parseFloat(input.borderRadius),outline:input.outlineStyle,fill:input.webkitTextFillColor};
+      })()
+    JS
+    assert_includes styles.fetch("shadow"), "rgb(11, 14, 26)"
+    assert_includes styles.fetch("shadow"), "inset"
+    assert_operator styles.fetch("left"), :>=, 8
+    assert_operator styles.fetch("right"), :>=, 8
+    assert_operator styles.fetch("radius"), :>, 0
+    assert_equal "none", styles.fetch("outline")
+    assert_equal "rgb(241, 245, 249)", styles.fetch("fill")
+    page.execute_script("document.querySelector('.search-form').scrollIntoView({block:'center',behavior:'instant'})")
+    save_screenshot(Rails.root.join("tmp/screenshots/search-autofill.png"))
+  ensure
+    browser&.execute_cdp("CSS.forcePseudoState", nodeId: node, forcedPseudoClasses: []) if node
+  end
+
   private
 
   def search_viewport

@@ -1,6 +1,6 @@
 require "net/http"
 require "uri"
-base = URI("https://bing.testing.xenor.ovh")
+base = URI("https://bingo.testing.xenor.ovh")
 def check(base, path, expected, auth: false, method: Net::HTTP::Get)
   uri = base + path
   request = method.new(uri)
@@ -17,7 +17,9 @@ check(base, "/discord/interactions", 401, method: Net::HTTP::Post)
 check(base, "/", 200, auth: true)
 check(base, "/sign-in", 200, auth: true)
 check(base, "/admin", 403, auth: true)
-legacy = URI("https://uv-bingo.testing.xenor.ovh")
-check(legacy, "/", 401)
-check(legacy, "/", 200, auth: true)
-check(legacy, "/cable", 401)
+%w[bing.testing.xenor.ovh uv-bingo.testing.xenor.ovh].each do |hostname|
+  legacy = URI("https://#{hostname}")
+  check(legacy, "/", 401)
+  check(legacy, "/", 200, auth: true)
+  check(legacy, "/cable", 401)
+end

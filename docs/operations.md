@@ -2,7 +2,7 @@
 
 ## Hosts and isolation
 
-- Staging: `xenor@192.168.2.73`, `bing.testing.xenor.ovh`. The previous `uv-bingo.testing.xenor.ovh` address remains a compatibility alias with the same HTTP authentication.
+- Staging: `xenor@192.168.2.73`, `bingo.testing.xenor.ovh`. The previous `bing.testing.xenor.ovh` and `uv-bingo.testing.xenor.ovh` addresses remain compatibility aliases with the same HTTP authentication.
 - Production: `ubuntu@5.135.141.150`, `bingo.xenor.ovh`.
 - Registry image: `gitea.xenor.ovh/xenor/uv-bingo`.
 - Accessory: `uv-bingo-db`, PostgreSQL 17, its own persistent data directory and credentials.

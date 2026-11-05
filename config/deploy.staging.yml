@@ -6,14 +6,15 @@ servers:
       - 192.168.2.73
 proxy:
   hosts:
+    - bingo.testing.xenor.ovh
     - bing.testing.xenor.ovh
     - uv-bingo.testing.xenor.ovh
 env:
   clear:
     RAILS_ENV: staging
-    APP_HOST: bing.testing.xenor.ovh
-    APP_HOST_ALIASES: uv-bingo.testing.xenor.ovh
-    APP_URL: https://bing.testing.xenor.ovh
+    APP_HOST: bingo.testing.xenor.ovh
+    APP_HOST_ALIASES: bing.testing.xenor.ovh,uv-bingo.testing.xenor.ovh
+    APP_URL: https://bingo.testing.xenor.ovh
   secret:
     - SECRET_KEY_BASE
     - POSTGRES_PASSWORD

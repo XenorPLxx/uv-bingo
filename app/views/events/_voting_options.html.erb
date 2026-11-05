@@ -3,7 +3,7 @@
     <% vote = @votes_by_option[option.id]; voted = vote.present? %>
     <article class="option-card <%= 'selected' if voted %>" id="option-<%= option.id %>" role="listitem">
       <span class="option-count" aria-label="Liczba głosów: <%= @counts.fetch(option.id, 0) %>" title="Liczba głosów"><%= @counts.fetch(option.id, 0) %></span>
-      <h3><%= option.text %><% if voted %><span class="sr-only"> (Twój głos)</span><% end %></h3>
+      <h2><%= option.text %><% if voted %><span class="sr-only"> (Twój głos)</span><% end %></h2>
       <div class="option-bottom">
         <% if voted && @event.voting_open? %><%= button_to "Cofnij głos", event_vote_path(@event, vote), method: :delete, params: { q: @query.presence }, class: "button vote-button withdraw-button", id: "option-#{option.id}-vote", form: { data: { action: "submit->event-status#submit", option_id: option.id } } %>
         <% elsif voted %><span class="voted-label">Twój głos ✓</span>
@@ -15,4 +15,4 @@
     </article>
   <% end %>
 </div>
-<% if @options.empty? %><div class="empty-card"><span class="empty-symbol">✦</span><h3><%= @query.present? ? 'Brak wyników.' : 'Brak propozycji.' %></h3><p>Propozycje można dodawać w czasie głosowania.</p></div><% end %>
+<% if @options.empty? %><div class="empty-card"><span class="empty-symbol">✦</span><h2><%= @query.present? ? 'Brak wyników.' : 'Brak propozycji.' %></h2><p>Propozycje można dodawać w czasie głosowania.</p></div><% end %>

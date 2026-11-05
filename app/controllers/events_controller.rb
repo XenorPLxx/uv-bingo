@@ -43,8 +43,7 @@ class EventsController < ApplicationController
         ballot: render_to_string(partial: "events/ballot", formats: [ :html ]),
         add_option: render_to_string(partial: "events/add_option", formats: [ :html ]),
         schedule: render_to_string(partial: "events/voting_schedule", formats: [ :html ]),
-        can_add: @can_add_option,
-        option_count: @event.options.eligible.count
+        can_add: @can_add_option
       }
     end
     render json: data
