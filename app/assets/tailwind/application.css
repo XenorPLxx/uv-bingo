@@ -72,6 +72,7 @@
   .status-dot.active { background: #57d9b5; box-shadow: 0 0 12px #57d9b560; }
   .tag { font-size: 8px; letter-spacing: 1.2px; padding: 5px 8px; border-radius: 5px; color: #c3b2fa; background: #a78bfa12; border: 1px solid #a78bfa25; }
   .voting-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 32px; scroll-margin-top: 24px; }
+  .voting-sidebar { position: sticky; top: 24px; align-self: start; max-height: calc(100svh - 48px); overflow-y: auto; scrollbar-width: thin; scrollbar-gutter: stable; padding-right: 4px; }
   .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
   .section-title h2 { font-size: 25px; font-weight: 750; letter-spacing: -.9px; margin-top: 8px; }
   .count-badge { display: inline-flex; vertical-align: middle; justify-content: center; align-items: center; width: 26px; height: 26px; border-radius: 7px; font-size: 14px; margin-left: 12px; background: #ffffff09; color: #afb5c7; letter-spacing: 0; }
@@ -272,7 +273,7 @@
   .event-strip { flex-direction: column; align-items: flex-start; padding: 15px; margin-bottom: 30px; font-size: 15px; }
   .event-strip .tag { font-size: 7px; }
   .voting-layout { display: flex; flex-direction: column; gap: 25px; }
-  .voting-sidebar { display: grid; grid-template-columns: 1fr; }
+  .voting-sidebar { display: grid; grid-template-columns: 1fr; position: static; top: auto; align-self: stretch; max-height: none; overflow: visible; scrollbar-gutter: auto; padding-right: 0; }
   .section-title h2 { font-size: 22px; }
   .option-card { grid-template-columns: 2ch minmax(0,1fr) auto; gap: 8px; padding: 10px 12px; }
   .option-count { font-size: 16px; }
