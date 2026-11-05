@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+remote="$(ruby -ryaml -e 'config = YAML.load_file("config/deploy.production.yml"); puts "#{config.fetch("ssh").fetch("user")}@#{config.fetch("servers").fetch("web").fetch("hosts").first}"')"
+exec ssh "$remote" 'bash "$HOME/uv-bingo/db_backup_production.sh"'

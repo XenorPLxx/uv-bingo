@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+remote="$(ruby -ryaml -e 'config = YAML.load_file("config/deploy.production.yml"); puts "#{config.fetch("ssh").fetch("user")}@#{config.fetch("servers").fetch("web").fetch("hosts").first}"')"
+ssh "$remote" 'set -eu
+umask 077
+mkdir -p "$HOME/uv-bingo" "$HOME/backups/uv-bingo"
+temporary=$(mktemp "$HOME/uv-bingo/.backup-install.XXXXXX")
+trap '\''rm -f "$temporary"'\'' EXIT
+cat > "$temporary"
+bash -n "$temporary"
+chmod 700 "$temporary"
+mv "$temporary" "$HOME/uv-bingo/db_backup_production.sh"' < script/backup_production_db.sh
+
+# Verify the new job before replacing the previous Bingo schedule.
+bin/backup-production-server
+ssh "$remote" 'bash -s' <<'REMOTE'
+set -euo pipefail
+umask 077
+temporary=$(mktemp)
+trap 'rm -f "$temporary"' EXIT
+(crontab -l 2>/dev/null || true) | awk '!/# uv-bingo-production-backup$/ && !/# uv-bingo-prod-db-backup$/' > "$temporary"
+printf '30 4 * * * %s/uv-bingo/db_backup_production.sh >> %s/backups/uv-bingo/backup.log 2>&1 # uv-bingo-prod-db-backup\n' "$HOME" "$HOME" >> "$temporary"
+crontab "$temporary"
+crontab -l | grep -F '# uv-bingo-prod-db-backup'
+REMOTE

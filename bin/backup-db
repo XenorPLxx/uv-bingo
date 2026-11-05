@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 cd "$(dirname "$0")/.."
 destination="${1:-staging}"
 case "$destination" in staging|production) ;; *) echo 'Unknown destination' >&2; exit 1;; esac

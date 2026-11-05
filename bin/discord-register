@@ -3,6 +3,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 destination="${1:-staging}"
 case "$destination" in staging|production) ;; *) echo 'Unknown destination' >&2; exit 1;; esac
+if [[ $# -gt 2 || "${2:-guild}" != guild ]]; then
+  echo 'Only server-specific commands are supported; omit the scope or use guild.' >&2
+  exit 1
+fi
 set -a
 source ".envrc.${destination}"
 set +a

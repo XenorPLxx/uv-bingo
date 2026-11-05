@@ -46,15 +46,27 @@ Production should use a fresh event with real options/votes, not the seeded rehe
 
 ## Backup and restore
 
+Production uses the same server backup layout as the other apps. Install or update its daily job with:
+
 ```sh
+bin/install-prod-backup-cron
+```
+
+The installer places `script/backup_production_db.sh` at `/home/ubuntu/uv-bingo/db_backup_production.sh`, verifies one backup, and installs a single `ubuntu` cron entry at 04:30 UTC, tagged `uv-bingo-prod-db-backup`. Other apps' cron entries remain unchanged. Normal application deployments do not run a backup.
+
+Dumps are gzip-compressed SQL files at `/home/ubuntu/backups/uv-bingo/prod_dump_*.sql.gz`, with seven-day retention. The job locks against overlapping runs, writes to a private temporary file, validates the gzip stream and SQL header, then publishes the completed dump. Failed backups leave existing dumps intact; pruning only runs after success. Cron output goes to `/home/ubuntu/backups/uv-bingo/backup.log`. The previous `uv-bingo-production-backup` cron entry is replaced; older dumps under `/home/ubuntu/backups/uv-bingo-production/daily` are retained.
+
+On Unraid srv01 (`root@192.168.2.42`), the existing **rsync_daily** user script includes **Bingo-daily** alongside the other apps. It pulls `ovh02:~/backups/uv-bingo/` into `/mnt/user/Backups/Bingo/`, using `/mnt/user/appdata/ssh/config` and the existing daily 03:00 local schedule. As with the other database backup jobs, it does not use `--delete`, so server retention does not delete older copies on srv01.
+
+Optional manual backups:
+
+```sh
+bin/backup-production-server  # write another SQL gzip dump on production
+bin/backup-db production     # download a custom-format dump into local backups/
 bin/backup-db staging
 ```
 
-Backups are custom-format `pg_dump` files in local ignored `backups/`. Verify with a PostgreSQL 17+ `pg_restore --list`; restore into a separate temporary database and check row counts before treating a backup as verified. Never restore over an active event merely to verify a backup.
-
-For event-day operations, take a backup before the draw and before the live session. Production also runs `script/backup_production_db.sh` daily at 03:21 server time, installed as `/home/ubuntu/.local/lib/uv-bingo/backup-db` in the `ubuntu` crontab. Dumps are private files under `/home/ubuntu/backups/uv-bingo-production/daily`, with 14-day retention after a successful backup. Locking prevents overlapping runs; incomplete/invalid dumps never replace valid backups. The managed cron line is tagged `uv-bingo-production-backup`.
-
-`bin/backup-db production` downloads a separate off-host snapshot into local `backups/`. Those manual snapshots are not pruned by the server's daily retention. Keep periodic off-host copies in addition to the server schedule.
+Local `backups/` is ignored by Git. Those custom-format dumps use PostgreSQL 17+ `pg_restore`; server/srv01 SQL dumps use `gzip -dc DUMP.sql.gz | psql -v ON_ERROR_STOP=1 -d RESTORE_DATABASE`. Verify backups by restoring into a separate temporary database and checking row counts and saved draws. Never restore over an active event merely to verify a backup.
 
 ## Rollback and diagnostics
 
@@ -78,8 +90,8 @@ DNS `bingo.xenor.ovh` points to `5.135.141.150`. Keep separate secrets in the ig
 ```sh
 bin/kamal-production accessory boot db  # once, on a new host
 bin/deploy-production-safe
+bin/install-prod-backup-cron            # initial setup or backup-script changes
 bin/kamal-production app exec --reuse "bin/rails runner script/prepare_trial.rb"
-bin/backup-db production
 ```
 
 Trial setup is explicit and idempotent; it is not part of normal deployment or database seeds. It creates two public, labeled test events:

@@ -119,3 +119,12 @@ These are clearly labeled test events. Production has configuration only and has
 
 - The temporary global `/bingo` registration and the direct community-server registration both appeared in Discord. Removed only global command `1567947561598455909`, preserving the verified staging and production server commands. Discord's API confirms no global `/bingo` and exactly one server-specific `/bingo` in each server.
 - Updated setup instructions to use server-specific registration after installation. This is a Discord configuration change; the application image and participant/voting data are unchanged.
+
+## Daily backups and registration guard — 5 November 2026
+
+- Production backups now follow the other apps' layout: `/home/ubuntu/backups/uv-bingo/prod_dump_*.sql.gz`, daily at 04:30 UTC, with seven-day retention. Installed the script at `/home/ubuntu/uv-bingo/db_backup_production.sh`; the installer replaces only Bingo's cron entry after verifying a backup. Reinstallation leaves exactly one Bingo job and all unrelated cron entries unchanged. Older custom-format dumps are retained.
+- Added **Bingo-daily** to srv01's existing Unraid **rsync_daily** user script, pulling into `/mnt/user/Backups/Bingo/` without deletion. Existing jobs and the 03:00 local schedule are unchanged. Saved the previous script before the edit and ran only the new Bingo pull for verification.
+- Production and srv01 dump hashes match. Restored the srv01 copy into a separate local PostgreSQL 17 database: 2 events, 55 proposals, 25 votes, 1 draw and 25 cells. Verified the snapshot digest, reproducible draw and board cell order, then removed the temporary database and local verification dump.
+- Backup failure probes cover failed dumps, invalid SQL, lock failures, temporary-file cleanup, private permissions and retention only after successful validation. Shell syntax checks and the registration script's RuboCop check pass.
+- The production deploy wrapper is unchanged and does not take a backup. Scheduled backups and optional manual snapshots are independent of deployments.
+- Both the Discord registration wrapper and Ruby script reject `global` before credentials are loaded or an API request is made. No Discord registration or application redeployment was needed for these operational changes.
