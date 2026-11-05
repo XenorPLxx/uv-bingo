@@ -59,10 +59,11 @@ Rails.application.configure do
   # Only use :id for inspections in production.
   config.active_record.attributes_for_inspect = [ :id ]
 
-  config.hosts = [ ENV.fetch("APP_HOST", "uv-bingo.xenor.ovh") ]
+  app_host_aliases = ENV.fetch("APP_HOST_ALIASES", "").split(",").map(&:strip).reject(&:empty?)
+  config.hosts = [ ENV.fetch("APP_HOST", "bing.xenor.ovh"), *app_host_aliases ]
   config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
   config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
-  config.action_cable.allowed_request_origins = [ ENV.fetch("APP_URL", "https://uv-bingo.xenor.ovh") ]
+  config.action_cable.allowed_request_origins = [ ENV.fetch("APP_URL", "https://bing.xenor.ovh"), *app_host_aliases.map { |host| "https://#{host}" } ]
   # Enable DNS rebinding protection and other `Host` header attacks.
   # config.hosts = [
   #   "example.com",     # Allow requests from example.com

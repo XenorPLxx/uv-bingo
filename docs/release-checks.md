@@ -1,6 +1,6 @@
 # First staging release — 5 November 2026
 
-Staging: https://uv-bingo.testing.xenor.ovh
+Staging: https://bing.testing.xenor.ovh
 
 Verified:
 
@@ -56,3 +56,9 @@ These are clearly labeled test events. Production has configuration only and has
 - Proposals are ordered by descending vote count, with stable creation-time/ID order for display ties. Totals are public during voting and replace sequence numbers in the left column, including on mobile. The duplicate totals beside vote actions were removed.
 - Casts and withdrawals advance the event revision so open pages refresh their totals and ordering. Refresh is deferred while a form is submitting or a text field is being edited. Seeded draw tie-breaking remains independent of the display order.
 - Application suite: 40 tests / 303 assertions. Chrome suite: 3 tests / 53 assertions. RuboCop passes.
+
+## Domain change — 5 November 2026
+
+- Staging now uses `bing.testing.xenor.ovh` for the application URL and Discord interaction/login URLs. The previous `uv-bingo.testing.xenor.ovh` hostname remains a compatibility alias. Both hosts are covered by HTTPS, staging HTTP authentication, Rails host authorization and allowed Cable origins.
+- Production configuration and Rails fallback URLs target `bing.xenor.ovh` for the later production release. Production has not been deployed.
+- Validated both destination configurations with Kamal. Existing staging-authentication, Discord and website integration checks pass; RuboCop passes.

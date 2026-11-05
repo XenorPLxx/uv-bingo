@@ -5,12 +5,12 @@ servers:
     hosts:
       - 5.135.141.150
 proxy:
-  host: uv-bingo.xenor.ovh
+  host: bing.xenor.ovh
 env:
   clear:
     RAILS_ENV: production
-    APP_HOST: uv-bingo.xenor.ovh
-    APP_URL: https://uv-bingo.xenor.ovh
+    APP_HOST: bing.xenor.ovh
+    APP_URL: https://bing.xenor.ovh
 accessories:
   db:
     image: postgres:17-alpine

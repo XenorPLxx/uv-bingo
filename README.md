@@ -65,7 +65,7 @@ Tests cover budget concurrency, voting boundaries, vote withdrawals and reused s
 
 ## Deployment
 
-See [operations](docs/operations.md). Staging: https://uv-bingo.testing.xenor.ovh. Planned production: https://uv-bingo.xenor.ovh.
+See [operations](docs/operations.md). Staging: https://bing.testing.xenor.ovh. Planned production: https://bing.xenor.ovh.
 
 ```sh
 bin/kamal-staging accessory boot db  # first deployment only

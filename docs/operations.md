@@ -2,8 +2,8 @@
 
 ## Hosts and isolation
 
-- Staging: `xenor@192.168.2.73`, `uv-bingo.testing.xenor.ovh`.
-- Production configuration: `ubuntu@5.135.141.150`, `uv-bingo.xenor.ovh`.
+- Staging: `xenor@192.168.2.73`, `bing.testing.xenor.ovh`. The previous `uv-bingo.testing.xenor.ovh` address remains a compatibility alias with the same HTTP authentication.
+- Production configuration: `ubuntu@5.135.141.150`, `bing.xenor.ovh`.
 - Registry image: `gitea.xenor.ovh/xenor/uv-bingo`.
 - Accessory: `uv-bingo-db`, PostgreSQL 17, its own persistent data directory and credentials.
 - Databases: `uv_bingo_staging` / `uv_bingo_production`.
@@ -63,4 +63,4 @@ Clients resync on reconnect, when the tab becomes visible, and every 15 seconds.
 
 ## Production preparation
 
-Production config is checked in but is not deployed by staging commands. Provision separate secrets, install the production Discord application in the community server, configure the final domain, backups and endpoint, and deploy only when production is authorized.
+Production config targets `bing.xenor.ovh` and is not deployed by staging commands. Point that hostname to `5.135.141.150` before the first production deployment. Provision separate secrets, install the production Discord application in the community server, configure the final domain, backups and endpoint, and deploy only when production is authorized.
