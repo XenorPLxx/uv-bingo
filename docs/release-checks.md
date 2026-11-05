@@ -28,3 +28,10 @@ These are clearly labeled test events. Production has configuration only and has
 - RuboCop passes; Brakeman reports no warnings. No database migration is required.
 - Deployed application commit: `bf32d77`. Staging access checks passed for pages, assets, Cable and the Discord endpoint.
 - A temporary staging participant successfully cast and withdrew a vote while preserving the option, then suggested and cleared a mark from presentation mode. A separate browser received both live updates. Event navigation exposes the live test board, and the saved draw record remained unchanged. The temporary account, login tokens and test activity were removed afterward.
+
+## Copy, compact proposal list and Discord avatar — 5 November 2026
+
+- Replaced slogans with the event title and concise descriptions of voting, proposal submission, sign-in and board generation. Removed the brand tagline and shortened the hero.
+- Proposals use one compact row per item on every screen size, with the vote action on the right. Text wraps on narrow screens and mobile actions retain a 44px touch target.
+- Application suite: 31 tests / 188 assertions. Existing Chrome journeys: 2 tests / 39 assertions, including voting, withdrawal, desktop/mobile layout and live updates. RuboCop passes.
+- Generated `docs/branding/discord-avatar.png` with the built-in image_gen tool; saved the full prompt alongside it. Applied and read back both the staging Discord application icon and bot avatar successfully.

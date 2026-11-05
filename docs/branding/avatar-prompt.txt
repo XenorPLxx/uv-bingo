@@ -1,0 +1,9 @@
+Generated with the built-in image_gen tool.
+Final asset: discord-avatar.png (1254 × 1254 pixels, PNG).
+
+Use case: stylized-concept.
+Asset type: square Discord app avatar for UV Bingo, a Polish gaming community bingo app.
+Create one finished 1024 x 1024 raster avatar, not a mockup. A bold centered cluster of four chunky rounded bingo tiles arranged in a 2 by 2 grid, with a very slight playful tilt as one group. The top two tiles are lilac purple and carry large white U and V respectively. The bottom left purple tile carries a large white question mark. The bottom right bright cyan tile carries a large dark navy X. Exactly these four symbols: U, V, ?, X; no other text.
+Dark midnight navy background (#080b17), purple tiles (#b29af8), cyan accent (#67e8f9). Restrained soft bevels and soft lighting give the tiles tactile depth, clean broad surfaces and crisp edges. A faint violet glow behind the cluster suggests the website's space artwork without distracting stars or visual clutter. Strong silhouette and contrast, legible when reduced to a small Discord avatar.
+Composition: tile cluster occupies the central 65 percent of the square and every important detail fits inside a circular crop with ample padding. Straight-on view, minimal perspective.
+Avoid: people, animals, slogans, tiny lettering, watermark, borders, app UI, decorative objects, excessive glow, photorealistic background. Opaque background.

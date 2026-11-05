@@ -24,7 +24,7 @@ class BingoTest < ApplicationSystemTestCase
       first(:button, "Głosuję +1").click
       assert_text "Głos zapisany. Pozostało: #{3 - index} z 5."
     end
-    assert_text "Twoje pięć głosów już jest w grze"
+    assert_text "Wykorzystano 5 głosów"
     assert_no_button "Głosuję +1"
     assert_equal 5, @voter.votes.count
     own_option = @event.options.find_by!(text: "Nowe przygody naszej ekipy")
@@ -39,7 +39,7 @@ class BingoTest < ApplicationSystemTestCase
     assert_no_text "Każdy głos ma tę samą wagę"
     save_screenshot(Rails.root.join("tmp/screenshots/voting-desktop.png"))
     page.current_window.resize_to(390, 844)
-    assert_selector "h1", text: "Wielkie zapowiedzi"
+    assert_selector "h1", text: @event.title
     assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > window.innerWidth")
     save_screenshot(Rails.root.join("tmp/screenshots/voting-mobile.png"))
   end

@@ -17,7 +17,7 @@ class DemoEvent
     Event.transaction do
       return Event.find_by(slug: "tga-2026-proba") if Event.exists?(slug: "tga-2026-proba")
       event = Event.create!(title: "TGA 2026 — próba generalna", slug: "tga-2026-proba", rehearsal: true,
-        description: "Próba przed wielkim wieczorem. Propozycje i pierwsze głosy są przykładowe — możesz przetestować swoje pięć głosów.",
+        description: "Wydarzenie testowe z przykładowymi propozycjami i głosami.",
         opens_at: 1.day.ago, closes_at: 7.days.from_now)
       IDEAS.each_with_index do |text, index|
         voter = Participant.find_or_create_by!(discord_id: "demo-#{index / 5}") { |p| p.display_name = "Gracz przykładowy #{index / 5 + 1}" }

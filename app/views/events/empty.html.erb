@@ -1,1 +1,1 @@
-<section class="empty-state"><span class="eyebrow">UV O GRACH</span><h1>Przygotowujemy planszę.</h1><p>Pierwsze wydarzenie pojawi się tutaj już wkrótce.</p><% if current_participant&.admin? %><%= link_to "Utwórz wydarzenie", new_admin_event_path, class: "button primary" %><% end %></section>
+<section class="empty-state"><h1>Brak wydarzeń</h1><p>Administrator nie utworzył jeszcze wydarzenia.</p><% if current_participant&.admin? %><%= link_to "Utwórz wydarzenie", new_admin_event_path, class: "button primary" %><% end %></section>

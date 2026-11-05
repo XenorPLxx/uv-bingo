@@ -10,7 +10,7 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     get root_path
     assert_response :success
     assert_select "html[lang=pl]"
-    assert_select "h1", /Wielkie zapowiedzi/
+    assert_select "h1", @event.title
     assert_no_difference "Vote.count" do
       post event_options_path(@event), params: { text: "Pomysł" }
     end

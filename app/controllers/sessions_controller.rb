@@ -32,7 +32,7 @@ class SessionsController < ApplicationController
     reset_session
     cookies.signed[:bingo_session_id] = { value: login_session.id, expires: login_session.expires_at,
       httponly: true, secure: !Rails.env.local?, same_site: :lax }
-    redirect_to root_path, notice: "Jesteś w grze. Powodzenia!"
+    redirect_to root_path, notice: "Zalogowano."
   end
 
   def destroy

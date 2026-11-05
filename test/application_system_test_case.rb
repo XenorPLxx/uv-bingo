@@ -11,7 +11,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   def browser_sign_in(participant)
     raw = LoginToken.issue!(participant: participant, interaction_id: SecureRandom.uuid)
     visit "/login?token=#{raw}"
-    click_button "Wchodzę do gry →"
-    assert_text "Jesteś w grze"
+    click_button "Zaloguj się"
+    assert_text "Zalogowano."
   end
 end

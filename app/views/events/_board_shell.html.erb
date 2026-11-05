@@ -1,5 +1,5 @@
 <section id="board" data-controller="board" data-board-event-id-value="<%= @event.id %>" data-board-url-value="<%= state_event_path(@event, presentation: @presentation ? '1' : '0') %>" data-board-revision-value="<%= @event.revision %>" data-board-phase-value="<%= @event.phase %>">
-  <div class="board-meta"><span><%= @event.rehearsal? ? 'PRÓBA GENERALNA' : 'JEDNA SPOŁECZNOŚĆ. JEDNA PLANSZA.' %></span><span data-board-target="connection" role="status">Łączenie z planszą…</span></div>
+  <div class="board-meta"><span><%= @event.rehearsal? ? 'PRÓBA GENERALNA' : 'PLANSZA 5 × 5' %></span><span data-board-target="connection" role="status">Łączenie z planszą…</span></div>
   <p class="board-feedback" data-board-target="feedback" role="status" aria-live="polite"></p>
   <div data-board-target="content"><%= render "events/board" %></div>
 </section>
