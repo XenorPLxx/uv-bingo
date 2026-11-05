@@ -12,7 +12,7 @@
       <div class="hero-actions"><a href="#options" class="button primary">Zobacz propozycje <span aria-hidden="true">↗</span></a></div>
     </div>
   </section>
-  <div class="voting-shell" data-controller="event-status" data-event-status-url-value="<%= state_event_path(@event, q: @query.presence) %>" data-event-status-phase-value="<%= @event.phase %>" data-event-status-revision-value="<%= @event.revision %>">
+  <div class="voting-shell" data-controller="event-status" data-event-status-url-value="<%= state_event_path(@event, q: @query.presence) %>" data-event-status-event-id-value="<%= @event.id %>" data-event-status-phase-value="<%= @event.phase %>" data-event-status-revision-value="<%= @event.revision %>">
     <div data-event-status-target="schedule"><%= render "events/voting_schedule" %></div>
     <div class="voting-layout" id="options">
       <section class="options-section" aria-label="Propozycje do głosowania">

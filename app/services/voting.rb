@@ -2,7 +2,7 @@ class Voting
   class Invalid < StandardError; end
 
   def self.cast!(event:, participant:, option_id: nil, text: nil)
-    event.with_lock do
+    vote = event.with_lock do
       participant.with_lock do
         raise Invalid, "Głosowanie jest zamknięte." unless event.voting_open?
         if option_id
@@ -26,10 +26,12 @@ class Voting
         vote
       end
     end
+    notify(event)
+    vote
   end
 
   def self.withdraw!(event:, participant:, vote_id:)
-    event.with_lock do
+    vote = event.with_lock do
       participant.with_lock do
         raise Invalid, "Głosowanie jest zamknięte." unless event.voting_open?
         # Votes remain immutable; only this window-checked operation removes a row.
@@ -38,5 +40,13 @@ class Voting
         vote
       end
     end
+    notify(event)
+    vote
   end
+
+  # Viewers refetch on notification, so it must follow the commit that changed the totals.
+  def self.notify(event)
+    ActiveRecord.after_all_transactions_commit { event.broadcast_update! }
+  end
+  private_class_method :notify
 end

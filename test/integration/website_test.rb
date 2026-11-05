@@ -1,6 +1,8 @@
 require "test_helper"
 
 class WebsiteTest < ActionDispatch::IntegrationTest
+  include ActionCable::TestHelper
+
   setup do
     @event = create_event
     @voter = create_participant
@@ -306,8 +308,8 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     @event.options.create!(participant: @voter, text: "Istniejąca propozycja")
     get event_path(@event), params: { q: "  nowy   pomysł " }
     assert_select ".empty-card h2", "Brak wyników."
-    assert_select ".empty-card a.empty-add-button[href=?]", sign_in_path
-    assert_select "#search-option-submit", 0
+    assert_select ".empty-card a.empty-add-button[href=?]", sign_in_path, "Zaloguj się, aby dodać"
+    assert_select ".empty-card p, #search-option-submit", 0
 
     sign_in_as(@voter)
     get event_path(@event), params: { q: "  nowy   pomysł " }
@@ -316,6 +318,7 @@ class WebsiteTest < ActionDispatch::IntegrationTest
       assert_select "input[type=hidden][name=text][value=?]", "nowy pomysł"
       assert_select "#search-option-submit", /Dodaj „nowy pomysł”/
     end
+    assert_select ".empty-card p", 0
     get state_event_path(@event), params: { q: "nowy pomysł", refresh: "1" }
     assert_match "search-option-submit", response.parsed_body.dig("voting", "options")
     assert_difference [ "Option.count", "Vote.count" ], 1 do
@@ -332,12 +335,41 @@ class WebsiteTest < ActionDispatch::IntegrationTest
 
     4.times { |i| Voting.cast!(event: @event, participant: @voter, text: "Wypełniam limit #{i}") }
     get event_path(@event), params: { q: "nic takiego" }
-    assert_select "#search-option-submit", 0
-    assert_select ".empty-card p", "Wykorzystano 5 głosów. Cofnij jeden, aby dodać propozycję."
+    assert_select ".empty-card h2", "Brak wyników."
+    assert_select ".empty-card p, .empty-card .empty-add-button", 0
     @event.update!(closes_at: 1.second.ago)
     get event_path(@event), params: { q: "nic takiego" }
-    assert_select ".empty-card p", "Dodawanie propozycji jest dostępne w czasie głosowania."
-    assert_select ".empty-card .empty-add-button", 0
+    assert_select ".empty-card h2", "Brak wyników."
+    assert_select ".empty-card p, .empty-card .empty-add-button", 0
+  end
+
+  test "votes withdrawals and new proposals notify open pages once committed" do
+    option = @event.options.create!(participant: create_participant, text: "Propozycja do głosowania")
+    stream = "event:#{@event.id}"
+    sign_in_as(@voter)
+    assert_broadcasts(stream, 1) { post event_votes_path(@event), params: { option_id: option.id }, as: :json }
+    assert_broadcast_on(stream, revision: @event.reload.revision)
+    assert_no_broadcasts(stream) { post event_votes_path(@event), params: { option_id: option.id }, as: :json }
+    vote = @voter.votes.find_by!(option: option)
+    assert_broadcasts(stream, 1) { delete event_vote_path(@event, vote), as: :json }
+    assert_broadcasts(stream, 1) { post event_options_path(@event), params: { text: "Nowa propozycja" }, as: :json }
+    assert_no_broadcasts(stream) do
+      post event_options_path(@event), params: { text: "nowa  PROPOZYCJA" }, as: :json
+      assert_response :unprocessable_entity
+    end
+
+    clear_messages(stream)
+    ActiveRecord::Base.transaction do
+      Voting.cast!(event: @event, participant: create_participant, option_id: option.id)
+      assert_empty broadcasts(stream), "Viewers must not refetch before the vote is committed"
+    end
+    assert_equal 1, broadcasts(stream).size
+    assert_no_broadcasts(stream) do
+      ActiveRecord::Base.transaction do
+        Voting.cast!(event: @event, participant: create_participant, option_id: option.id)
+        raise ActiveRecord::Rollback
+      end
+    end
   end
 
   test "event deletion requires admin access and exact typed confirmation" do
@@ -411,8 +443,8 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     assert_select ".add-panel textarea", 0
     assert_select "#option-#{other.id} button"
     get event_path(@event), params: { q: "Brakująca propozycja" }
-    assert_select ".empty-card p", text: /Osiągnięto limit 20 propozycji/
-    assert_select "#search-option-submit", 0
+    assert_select ".empty-card h2", "Brak wyników."
+    assert_select ".empty-card p, #search-option-submit", 0
     assert_no_difference [ "Option.count", "Vote.count" ] do
       post event_options_path(@event), params: { text: "Ponad limit" }, as: :json
       assert_response :unprocessable_entity

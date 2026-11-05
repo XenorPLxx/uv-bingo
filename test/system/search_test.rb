@@ -88,24 +88,25 @@ class SearchTest < ApplicationSystemTestCase
     page.execute_script("if(window.searchOriginalFetch) window.fetch=window.searchOriginalFetch")
   end
 
-  test "a search without results adds the searched text without touching the sidebar draft" do
+  test "a search without results adds the searched text, clears the search and keeps the sidebar draft" do
     query = "  Nieistniejący   wynik  Ⅳ  "
     normalized_text = "Nieistniejący wynik IV"
     fill_in "Twoja propozycja", with: "Szkic w panelu"
     fill_in "Szukaj propozycji", with: query
-    assert_selector ".empty-card", text: "Brak wyników."
+    assert_selector ".empty-card h2", text: "Brak wyników."
+    assert_no_selector ".empty-card p"
     assert_no_selector ".option-card"
     assert_no_text "Nowa propozycja otrzyma Twój głos"
     save_screenshot(Rails.root.join("tmp/screenshots/search-empty-desktop.png"))
     click_button "Dodaj „#{normalized_text}”"
     assert_selector ".voting-feedback", text: "Propozycja dodana z Twoim głosem. Pozostało: 4 z 5."
     added = @event.options.find_by!(text: normalized_text)
-    assert_selector ".option-card", count: 1
+    assert_selector ".option-card", count: 19
     assert_selector "#option-#{added.id}.selected", text: normalized_text
     assert_no_selector ".empty-card"
     assert_field "Twoja propozycja", with: "Szkic w panelu"
-    assert_field "Szukaj propozycji", with: query
-    assert_current_path event_path(@event, q: query)
+    assert_field "Szukaj propozycji", with: ""
+    assert_current_path event_path(@event)
     assert_equal "original", page.evaluate_script("window.searchDocument")
 
     mobile_viewport
@@ -115,6 +116,35 @@ class SearchTest < ApplicationSystemTestCase
     assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > innerWidth")
     page.execute_script("document.querySelector('.empty-card').scrollIntoView({block: 'center', behavior: 'instant'})")
     save_screenshot(Rails.root.join("tmp/screenshots/search-empty-mobile.png"))
+  end
+
+  test "a new search typed while adding a proposal is not cleared by the save response" do
+    fill_in "Twoja propozycja", with: "Zachowany szkic"
+    fill_in "Szukaj propozycji", with: "Nowa propozycja z wyszukiwania"
+    assert_selector "#search-option-submit"
+    page.execute_script(<<~JS)
+      window.searchOriginalFetch = window.fetch.bind(window);
+      window.fetch = async (input, options = {}) => {
+        const response = await window.searchOriginalFetch(input, options);
+        if (options.method === 'POST' && new URL(input, location.origin).pathname.endsWith('/options')) {
+          await new Promise(resolve => window.releaseProposal = resolve);
+        }
+        return response;
+      };
+    JS
+    click_button "Dodaj „Nowa propozycja z wyszukiwania”"
+    wait_for_search_script("typeof window.releaseProposal === 'function'")
+    fill_in "Szukaj propozycji", with: "Gabe"
+    page.execute_script("window.releaseProposal()")
+    assert_selector ".voting-feedback", text: "Propozycja dodana"
+    assert_field "Szukaj propozycji", with: "Gabe"
+    assert_selector ".option-card", count: 1
+    assert_selector "#option-#{@gabe.id}"
+    assert_current_path event_path(@event, q: "Gabe")
+    assert_field "Twoja propozycja", with: "Zachowany szkic"
+    assert_equal "Nowa propozycja z wyszukiwania", @voter.votes.sole.option.text
+  ensure
+    page.execute_script("window.releaseProposal?.(); if(window.searchOriginalFetch) window.fetch=window.searchOriginalFetch")
   end
 
   test "old responses errors and a query changed while voting cannot replace newer search results" do

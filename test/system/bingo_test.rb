@@ -104,11 +104,14 @@ class BingoTest < ApplicationSystemTestCase
     assert_equal "original", page.evaluate_script("window.votingDocument")
 
     page.execute_script("document.getElementById('option-#{options[16].id}').scrollIntoView({block: 'center', behavior: 'instant'})")
-    withdrawal_anchor = "#option-#{options[25].id}"
-    before = voting_viewport(withdrawal_anchor)
+    # The top of the list is on screen, so the list stays put and the next proposal slides up into the gap.
+    list_before = voting_viewport(".search-form")
+    next_before = voting_viewport("#option-#{options[25].id}")
     within("#option-#{options[16].id}") { click_button "Cofnij głos" }
     assert_selector ".voting-feedback", text: "Głos cofnięty. Propozycja zostaje. Pozostało: 5 z 5."
-    assert_voting_viewport before, withdrawal_anchor
+    assert_voting_viewport list_before, ".search-form"
+    row_step = page.evaluate_script("document.querySelector('.option-card').offsetHeight + 6")
+    assert_in_delta next_before["top"] - row_step, voting_viewport("#option-#{options[25].id}")["top"], 2
     assert_current_path event_path(@event)
     assert_field "Twoja propozycja", with: "Niedokończona propozycja"
     assert_equal "original", page.evaluate_script("window.votingDocument")
@@ -176,6 +179,68 @@ class BingoTest < ApplicationSystemTestCase
     save_screenshot(Rails.root.join("tmp/screenshots/voters-mobile.png"))
     page.driver.browser.action.move_to_location(5, 5).click.perform
     assert_no_selector "dialog[open]"
+  end
+
+  test "list updates keep on-screen proposals still so only rank changes move" do
+    options = seed_options(@event, 30)
+    # Three tiers: 3, 2 and 1 votes.
+    options.each_with_index { |option, index| (2 - index / 10).times { Voting.cast!(event: @event, participant: create_participant, option_id: option.id) } }
+    browser_sign_in(@voter)
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "reduce" } ])
+    page.execute_script("document.getElementById('option-#{options[14].id}').scrollIntoView({block: 'start', behavior: 'instant'}); scrollBy(0, -20)")
+
+    # Another member votes for the topmost visible proposal; it climbs out of view and nothing else moves.
+    climber = @event.options.find(page.evaluate_script("Object.keys(#{VISIBLE_ROWS})[0]").delete_prefix("option-"))
+    before = page.evaluate_script(VISIBLE_ROWS)
+    Voting.cast!(event: @event, participant: create_participant, option_id: climber.id)
+    assert_selector "#option-#{climber.id} .option-count", text: "3"
+    assert_equal [ 0 ], row_shifts(before, except: climber).values.uniq
+
+    # A proposal from below the screen climbs above it; the visible rows stay put.
+    before = page.evaluate_script(VISIBLE_ROWS)
+    2.times { Voting.cast!(event: @event, participant: create_participant, option_id: options[28].id) }
+    assert_selector "#option-#{options[28].id} .option-count", text: "3"
+    assert_equal [ 0 ], row_shifts(before, except: options[28]).values.uniq
+
+    # Withdrawing an on-screen vote only closes the gap it leaves.
+    Voting.cast!(event: @event, participant: @voter, option_id: options[15].id)
+    assert_selector "#option-#{options[15].id}.selected"
+    page.execute_script("document.getElementById('option-#{options[15].id}').scrollIntoView({block: 'center', behavior: 'instant'})")
+    before = page.evaluate_script(VISIBLE_ROWS)
+    within("#option-#{options[15].id}") { click_button "Cofnij głos" }
+    assert_selector ".voting-feedback", text: "Głos cofnięty"
+    row_height = page.evaluate_script("document.querySelector('.option-card').offsetHeight + 6")
+    above, below = row_shifts(before, except: options[15]).partition { |id, _| before[id] < before.fetch("option-#{options[15].id}") }
+    assert_equal [ 0 ], above.map(&:last).uniq, "Rows above the withdrawn proposal stay still"
+    assert_includes below.map(&:last), -row_height, "Rows below slide up into the gap"
+    assert_empty below.map(&:last).uniq - [ 0, -row_height ]
+
+    # When the whole list fits on screen, reordering never scrolls the page.
+    page.execute_script("document.querySelector('.search-form').scrollIntoView({block: 'start', behavior: 'instant'})")
+    search_top = page.evaluate_script("Math.round(document.querySelector('.search-form').getBoundingClientRect().top)")
+    3.times { Voting.cast!(event: @event, participant: create_participant, option_id: options[12].id) }
+    assert_selector "#option-#{options[12].id} .option-count", text: "5"
+    assert_equal search_top, page.evaluate_script("Math.round(document.querySelector('.search-form').getBoundingClientRect().top)")
+  end
+
+  test "reordered proposals slide into place and changed totals pulse" do
+    options = seed_options(@event, 12)
+    browser_sign_in(@voter)
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "no-preference" } ])
+    page.execute_script("window.slides = []; const animate = Element.prototype.animate; Element.prototype.animate = function(...args) { window.slides.push(this.id); return animate.apply(this, args) }")
+    Voting.cast!(event: @event, participant: create_participant, option_id: options[5].id)
+    assert_selector "#option-#{options[5].id}.pulse-gain"
+    assert_includes page.evaluate_script("window.slides"), "option-#{options[5].id}"
+    within("#option-#{options[8].id}") { click_button "Głosuję +1" }
+    assert_selector "#option-#{options[8].id}.pulse-mine"
+    within("#option-#{options[8].id}") { click_button "Cofnij głos" }
+    assert_selector "#option-#{options[8].id}.pulse-loss"
+    assert_no_selector "#option-#{options[1].id}[class*=pulse]"
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "reduce" } ])
+    page.execute_script("window.slides = []")
+    Voting.cast!(event: @event, participant: create_participant, option_id: options[10].id)
+    assert_selector "#option-#{options[10].id} .option-count", text: "2"
+    assert_empty page.evaluate_script("window.slides")
   end
 
   test "inline proposals and admin decisions update other viewers from both board views" do
@@ -322,6 +387,13 @@ class BingoTest < ApplicationSystemTestCase
   end
 
   private
+
+  VISIBLE_ROWS = "Object.fromEntries(Array.from(document.querySelectorAll('.option-card')).map(row => [row.id, Math.round(row.getBoundingClientRect().top)]).filter(([, top]) => top >= 0 && top < innerHeight - 80))".freeze
+
+  def row_shifts(before, except:)
+    after = page.evaluate_script("Object.fromEntries(Array.from(document.querySelectorAll('.option-card')).map(row => [row.id, Math.round(row.getBoundingClientRect().top)]))")
+    before.except("option-#{except.id}").to_h { |id, top| [ id, after.fetch(id) - top ] }
+  end
 
   def voting_viewport(selector)
     page.evaluate_script("({top: document.querySelector('#{selector}').getBoundingClientRect().top, sidebar: document.querySelector('.voting-sidebar').scrollTop})")

@@ -1,9 +1,10 @@
 import { Controller } from "@hotwired/stimulus"
 import { Turbo } from "@hotwired/turbo-rails"
+import { createConsumer } from "@rails/actioncable"
 
 export default class extends Controller {
   static targets = ["options", "ballot", "addOption", "sidebar", "feedback", "schedule", "search", "searchForm", "searchStatus", "voters", "votersTitle", "votersCount", "votersList"]
-  static values = { url: String, phase: String, revision: Number }
+  static values = { url: String, phase: String, revision: Number, eventId: Number }
 
   connect() {
     this.queryVersion = 0
@@ -11,7 +12,18 @@ export default class extends Controller {
     this.appliedQuery = this.query
     this.searchPending = false
     this.searchError = false
-    this.timer = setInterval(() => this.refresh(), 15000)
+    this.lastSync = Date.now()
+    this.consumer = createConsumer()
+    this.subscription = this.consumer.subscriptions.create({ channel: "EventChannel", event_id: this.eventIdValue }, {
+      connected: () => { this.online = true; this.queueRefresh(0) },
+      disconnected: () => { this.online = false },
+      received: ({ revision } = {}) => { if (revision !== this.revisionValue) this.queueRefresh() }
+    })
+    // Changes arrive over the socket. Polling covers a dropped connection or a failed search,
+    // and otherwise acts as a slow safety resync.
+    this.timer = setInterval(() => {
+      if (!this.online || this.searchError || Date.now() - this.lastSync >= 60000) this.refresh()
+    }, 15000)
     this.visibility = () => { if (!document.hidden) this.refresh() }
     document.addEventListener("visibilitychange", this.visibility)
   }
@@ -19,19 +31,33 @@ export default class extends Controller {
   disconnect() {
     clearInterval(this.timer)
     clearTimeout(this.searchTimer)
+    clearTimeout(this.pushTimer)
     this.activeSearch = null
     document.removeEventListener("visibilitychange", this.visibility)
     this.request?.abort()
     this.mutation?.abort()
+    this.subscription?.unsubscribe()
+    this.consumer?.disconnect()
   }
 
+  // Coalesces bursts of pushes and spreads viewers' requests over a short window.
+  queueRefresh(delay = 200 + Math.random() * 800) {
+    clearTimeout(this.pushTimer)
+    this.pushTimer = setTimeout(async () => {
+      if (!(await this.refresh())) this.queueRefresh(2000)
+    }, delay)
+  }
+
+  // Returns false when the page is busy and the refresh should be retried.
   async refresh() {
-    if (document.hidden || this.saving || this.activeSearch || this.searchPending || this.refreshPromise || !this.element.isConnected) return
-    if (document.activeElement !== this.searchTarget && this.element.contains(document.activeElement) && document.activeElement.matches("textarea, input:not([type=submit])")) return
+    if (document.hidden || !this.element.isConnected) return true // The visibility handler catches up.
+    if (this.saving || this.activeSearch || this.searchPending || this.refreshPromise) return false
+    if (document.activeElement !== this.searchTarget && this.element.contains(document.activeElement) && document.activeElement.matches("textarea, input:not([type=submit])")) return false
     this.refreshPromise = this.readState({ force: this.searchError || this.query !== this.appliedQuery }).catch(() => {
       // Retry on the next poll. The server always checks voting dates and limits.
     }).finally(() => { this.refreshPromise = null })
     await this.refreshPromise
+    return true
   }
 
   get query() { return this.searchTarget.value.slice(0, 100) }
@@ -93,6 +119,7 @@ export default class extends Controller {
     event.preventDefault()
     if (this.saving) return
     const form = event.currentTarget
+    const submittedQueryVersion = this.queryVersion
     this.saving = true
     this.activeSearch = null
     this.optionsTarget.removeAttribute("aria-busy")
@@ -113,6 +140,11 @@ export default class extends Controller {
       if (!response.ok) throw new Error(data.error || (response.status === 429 ? "Zbyt wiele kliknięć. Spróbuj za chwilę." : "Nie zapisano zmiany. Odśwież stronę i spróbuj ponownie."))
       feedback = { message: data.message, failed: false }
       clearDraft = form.dataset.votingKind === "proposal"
+      // Return to the full list unless the viewer typed a new search while saving.
+      if (form.dataset.votingKind === "search" && this.queryVersion === submittedQueryVersion) {
+        this.searchTarget.value = ""
+        this.queryVersion += 1
+      }
     } catch (error) {
       feedback = {
         message: error.name === "AbortError" ? "Nie udało się potwierdzić zapisu. Sprawdź liczbę głosów przed ponownym kliknięciem." : error.message,
@@ -153,6 +185,7 @@ export default class extends Controller {
       if (response.status === 404) { Turbo.visit("/?removed=1", { action: "replace" }); return }
       if (!response.ok) throw new Error("state request failed")
       const state = await response.json()
+      this.lastSync = Date.now()
       if (request.signal.aborted || !this.element.isConnected || (this.saving && !update.mutation)) return
       if (requestId !== this.requestId || queryVersion !== this.queryVersion) {
         if (update.feedback) this.updateVoting(null, { ...update, search: true })
@@ -179,6 +212,7 @@ export default class extends Controller {
     if (input) this.draft = input.value
     if (clearDraft) this.draft = ""
 
+    const rowsBefore = voting && !search ? this.snapshotRows() : null
     if (voting) {
       this.optionsTarget.innerHTML = voting.options
       // An open voter list follows the refreshed votes, or closes when the option has none left.
@@ -209,14 +243,41 @@ export default class extends Controller {
 
     if (focused?.id && !focused.isConnected) document.getElementById(focused.id)?.focus({ preventScroll: true })
     this.sidebarTarget.scrollTop = viewport.sidebarScroll
-    const anchor = viewport.anchors.find(({ id }) => document.getElementById(id))
-    if (viewport.searchTop !== null) {
-      window.scrollBy({ top: this.searchFormTarget.getBoundingClientRect().top - viewport.searchTop, behavior: "instant" })
-    } else if (anchor) {
-      const delta = document.getElementById(anchor.id).getBoundingClientRect().top - anchor.top
-      window.scrollBy({ top: delta, behavior: "instant" })
-    } else {
-      window.scrollTo({ left: viewport.x, top: viewport.y, behavior: "instant" })
+    this.restoreViewport(viewport)
+    if (rowsBefore) this.animateRows(rowsBefore)
+  }
+
+  snapshotRows() {
+    return new Map(Array.from(this.optionsTarget.querySelectorAll(".option-card"), row => [row.id, {
+      top: row.getBoundingClientRect().top,
+      count: Number(row.querySelector(".option-count")?.textContent),
+      selected: row.classList.contains("selected")
+    }]))
+  }
+
+  // Rows slide from their previous screen position, and changed totals pulse:
+  // lilac for the viewer's own new vote, teal for other new votes or proposals, amber for removed votes.
+  animateRows(before) {
+    const motion = !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const near = top => top > -window.innerHeight && top < window.innerHeight * 2
+    for (const row of this.optionsTarget.querySelectorAll(".option-card")) {
+      const previous = before.get(row.id)
+      const count = Number(row.querySelector(".option-count")?.textContent)
+      const selected = row.classList.contains("selected")
+      let pulse = null
+      if (!previous || count > previous.count) pulse = selected && !previous?.selected ? "mine" : "gain"
+      else if (count < previous.count) pulse = "loss"
+      if (pulse) row.classList.add(`pulse-${pulse}`)
+
+      if (!motion || !previous) continue
+      const top = row.getBoundingClientRect().top
+      const shift = previous.top - top
+      if (Math.abs(shift) < 1 || !(near(top) || near(previous.top))) continue
+      // Rows jumping several places pass over their neighbours.
+      if (Math.abs(shift) > row.offsetHeight * 1.5) row.classList.add("moving")
+      row.animate([{ transform: `translateY(${shift}px)` }, { transform: "none" }], {
+        duration: Math.min(600, 250 + Math.abs(shift) / 5), easing: "cubic-bezier(.2,.8,.2,1)"
+      }).finished.then(() => row.classList.remove("moving"), () => {})
     }
   }
 
@@ -248,11 +309,45 @@ export default class extends Controller {
   }
 
   captureViewport(excludedOptionId, search) {
-    const changedRow = document.getElementById(`option-${excludedOptionId}`)
-    const neighbour = changedRow?.nextElementSibling || changedRow?.previousElementSibling
-    const anchors = Array.from(this.optionsTarget.querySelectorAll(".option-card")).filter(row => row !== changedRow).map(row => ({ id: row.id, top: row.getBoundingClientRect().top, bottom: row.getBoundingClientRect().bottom })).filter(row => row.bottom > 0 && row.top < window.innerHeight)
-    // Keep the neighbouring row steady when the clicked proposal changes rank.
-    anchors.sort((a, b) => Number(b.id === neighbour?.id) - Number(a.id === neighbour?.id))
-    return { anchors, searchTop: search ? this.searchFormTarget.getBoundingClientRect().top : null, x: window.scrollX, y: window.scrollY, sidebarScroll: this.sidebarTarget.scrollTop }
+    const measure = (element, find) => {
+      const { top, bottom } = element.getBoundingClientRect()
+      return { find, top, visible: Math.min(bottom, window.innerHeight) - Math.max(top, 0) }
+    }
+    // Rows are re-rendered and found again by id. The search form and the phone sidebar panels persist.
+    const rows = Array.from(this.optionsTarget.querySelectorAll(".option-card"))
+      .filter(row => row.id !== `option-${excludedOptionId}`)
+      .map(row => measure(row, () => document.getElementById(row.id)))
+    const sidebarFollowsList = getComputedStyle(this.sidebarTarget).position !== "sticky"
+    const panels = [this.searchFormTarget, ...(sidebarFollowsList ? this.sidebarTarget.children : [])]
+      .map(element => measure(element, () => element))
+    return {
+      anchors: [...rows, ...panels].filter(({ visible }) => visible > 0),
+      listTop: this.optionsTarget.getBoundingClientRect().top,
+      searchTop: search ? this.searchFormTarget.getBoundingClientRect().top : null,
+      sidebarScroll: this.sidebarTarget.scrollTop
+    }
+  }
+
+  restoreViewport(viewport) {
+    if (viewport.searchTop !== null) {
+      window.scrollBy({ top: this.searchFormTarget.getBoundingClientRect().top - viewport.searchTop, behavior: "instant" })
+      return
+    }
+    // Hold the list still and let rows reorder within it, unless most of the screen shifted together
+    // because a row crossed the whole view. Then hold that larger group still instead.
+    // Groups are weighed by their visible height, and the list's own position counts double.
+    // While the top of the list is on screen it always stays put, like a leaderboard.
+    const listShift = Math.round(this.optionsTarget.getBoundingClientRect().top - viewport.listTop)
+    const weights = new Map()
+    for (const { find, top, visible } of viewport.anchors) {
+      const element = find()
+      if (!element) continue
+      if (element === this.searchFormTarget) { weights.set(listShift, Infinity); break }
+      let shift = Math.round(element.getBoundingClientRect().top - top)
+      if (Math.abs(shift - listShift) <= 1) shift = listShift
+      weights.set(shift, (weights.get(shift) || 0) + visible * (shift === listShift ? 2 : 1))
+    }
+    const [shift] = Array.from(weights).sort(([, a], [, b]) => b - a)[0] || [0]
+    if (shift) window.scrollBy({ top: shift, behavior: "instant" })
   }
 }
