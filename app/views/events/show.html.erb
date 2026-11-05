@@ -24,13 +24,12 @@
         <%= form.label :q, "Szukaj propozycji", class: "sr-only" %><span aria-hidden="true">⌕</span><%= form.search_field :q, value: @query, placeholder: "Szukaj propozycji…", maxlength: 100 %><%= form.submit "Szukaj", class: "search-button" %>
       <% end %>
       <div class="options-list" role="list">
-        <% @options.each_with_index do |option, index| %>
+        <% @options.each do |option| %>
           <% vote = @votes_by_option[option.id]; voted = vote.present? %>
           <article class="option-card <%= 'selected' if voted %>" id="option-<%= option.id %>" role="listitem">
-            <span class="option-number" aria-hidden="true"><%= format('%02d', index + 1) %></span>
+            <span class="option-count" aria-label="Liczba głosów: <%= @counts.fetch(option.id, 0) %>" title="Liczba głosów"><%= @counts.fetch(option.id, 0) %></span>
             <h3><%= option.text %><% if voted %><span class="sr-only"> (Twój głos)</span><% end %></h3>
             <div class="option-bottom">
-              <% if @counts %><span class="vote-total"><%= @counts.fetch(option.id, 0) %> głosów</span><% end %>
               <% if voted && @event.voting_open? %><%= button_to "Cofnij głos", event_vote_path(@event, vote), method: :delete, class: "button vote-button withdraw-button" %>
               <% elsif voted %><span class="voted-label">Twój głos ✓</span>
               <% elsif @event.voting_open? && current_participant && @remaining.positive? %>

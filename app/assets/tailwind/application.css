@@ -52,7 +52,6 @@
   .event-link strong { font-weight: 600; }
   .event-phase { font-size: 13px; color: #a4aec5; }
   .event-phase.phase-open, .event-phase.phase-live { color: #7ce4c9; }
-  .vote-total { margin-right: auto; }
   .ballot-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .ballot-remove { min-width: 32px; min-height: 32px; border-radius: 6px; color: #c7b5ff; font-size: 22px; }
   .ballot-remove:hover { background: #b9a1ff20; }
@@ -82,16 +81,16 @@
   .search-form input[type=search] { border: 0; background: transparent; padding: 15px 0; font-size: 14px; }
   .search-button { color: #b7a2f2; font-size: 14px; padding: 9px; }
   .options-list { display: flex; flex-direction: column; gap: 6px; }
-  .option-card { display: grid; grid-template-columns: 2ch minmax(0,1fr) auto; align-items: center; gap: 14px; min-height: 56px; padding: 8px 14px; background: #111525; border: 1px solid #ffffff0d; border-radius: 10px; transition: border-color .2s; }
+  .option-card { display: grid; grid-template-columns: 3ch minmax(0,1fr) auto; align-items: center; gap: 14px; min-height: 56px; padding: 8px 14px; background: #111525; border: 1px solid #ffffff0d; border-radius: 10px; transition: border-color .2s; }
   .option-card:hover { border-color: #a78bfa40; }
   .option-card.selected { background: linear-gradient(135deg,#221b38,#151627); border-color: #a78bfa50; }
-  .option-number { font-size: 13px; color: #7f8aa3; font-variant-numeric: tabular-nums; }
+  .option-count { font-size: 18px; font-weight: 700; color: #c7b5ff; font-variant-numeric: tabular-nums; text-align: center; }
   .option-card h3 { min-width: 0; font-size: 18px; font-weight: 600; line-height: 1.45; margin: 0; overflow-wrap: anywhere; }
   .option-bottom { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
   .option-bottom .muted { max-width: 110px; font-size: 13px; line-height: 1.5; text-align: right; }
   .button.vote-button { padding: 7px 10px; background: #ffffff05; border-color: #ffffff18; color: #d1bfef; font-size: 15px; gap: 8px; }
   .button.vote-button:hover { background: #a78bfa20; border-color: #a78bfa70; }
-  .voted-label, .vote-total { color: #b9a1ff; font-size: 14px; }
+  .voted-label { color: #b9a1ff; font-size: 14px; }
   .panel { background: #111525; border: 1px solid #ffffff10; border-radius: 14px; padding: 24px; }
   .voting-sidebar .panel { margin-bottom: 18px; }
   .panel .panel-heading h2 { margin-bottom: 0; }
@@ -275,8 +274,8 @@
   .voting-layout { display: flex; flex-direction: column; gap: 25px; }
   .voting-sidebar { display: grid; grid-template-columns: 1fr; }
   .section-title h2 { font-size: 22px; }
-  .option-card { grid-template-columns: minmax(0,1fr) auto; gap: 12px; padding: 10px 12px; }
-  .option-number { display: none; }
+  .option-card { grid-template-columns: 2ch minmax(0,1fr) auto; gap: 8px; padding: 10px 12px; }
+  .option-count { font-size: 16px; }
   .button.vote-button { min-height: 44px; }
   .option-card h3 { font-size: 17px; }
   .option-bottom { flex-wrap: wrap; max-width: 110px; gap: 4px; }

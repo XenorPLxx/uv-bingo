@@ -20,6 +20,7 @@ class OptionMergeTest < ActiveSupport::TestCase
     fillers.each { |option| Voting.cast!(event: @event, participant: source_only, option_id: option.id) }
     fillers.first(3).each { |option| Voting.cast!(event: @event, participant: both, option_id: option.id) }
 
+    revision_before_merge = @event.reload.revision
     assert_no_difference "Option.count" do
       assert_difference "Vote.count", -1 do
         assert_equal({ transferred_votes: 1, returned_votes: 1 }, merge)
@@ -41,7 +42,7 @@ class OptionMergeTest < ActiveSupport::TestCase
     assert_equal @admin, entry.participant
     assert_equal 1, entry.details.fetch("returned_votes")
     assert_equal both.id, entry.details.fetch("refunded_votes").first.fetch("participant_id")
-    assert_equal 1, @event.reload.revision
+    assert_equal revision_before_merge + 1, @event.reload.revision
 
     replacement = Voting.cast!(event: @event, participant: both, option_id: fillers.last.id)
     assert_equal duplicate.slot, replacement.slot
@@ -118,6 +119,7 @@ class OptionMergeTest < ActiveSupport::TestCase
     voter = create_participant
     Voting.cast!(event: @event, participant: voter, option_id: @source.id)
     Voting.cast!(event: @event, participant: voter, option_id: @target.id)
+    revision_before_merge = @event.reload.revision
     assert_raises(ActiveRecord::NotNullViolation) do
       OptionMerge.call(event: @event, admin: Participant.new, source_id: @source.id, target_id: @target.id, reason: "Duplikat")
     end
@@ -125,7 +127,7 @@ class OptionMergeTest < ActiveSupport::TestCase
     assert_equal 1, @target.votes.count
     assert_nil @source.reload.merged_into_id
     assert_equal 3, voter.votes_remaining(@event)
-    assert_equal 0, @event.reload.revision
+    assert_equal revision_before_merge, @event.reload.revision
     assert_equal 0, @event.audit_entries.count
   end
 

@@ -5,7 +5,7 @@ export default class extends Controller {
   connect() { this.timer = setInterval(() => this.refresh(), 15000) }
   disconnect() { clearInterval(this.timer); this.request?.abort() }
   async refresh() {
-    if (document.hidden || this.loading) return
+    if (document.hidden || this.loading || this.element.querySelector('form[aria-busy="true"]')) return
     this.loading = true
     this.request = new AbortController()
     const timeout = setTimeout(() => this.request.abort(), 8000)

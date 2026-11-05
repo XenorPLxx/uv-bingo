@@ -50,3 +50,9 @@ These are clearly labeled test events. Production has configuration only and has
 - Voting pages refresh on moderation revisions, while protecting text being edited. Cached voting requests resolve a merged proposal to the retained proposal.
 - Application suite: 39 tests / 286 assertions. Chrome system suite: 3 tests / 53 assertions. Coverage includes quota refunds and reuse, concurrent merges/voting, chained merges, transaction rollback, permissions, draw snapshots and a second browser refreshing after a merge. RuboCop passes; Brakeman reports no warnings.
 - The nullable merge reference is an additive migration. A staging database backup was taken before deployment.
+
+## Vote totals and proposal ordering — 5 November 2026
+
+- Proposals are ordered by descending vote count, with stable creation-time/ID order for display ties. Totals are public during voting and replace sequence numbers in the left column, including on mobile. The duplicate totals beside vote actions were removed.
+- Casts and withdrawals advance the event revision so open pages refresh their totals and ordering. Refresh is deferred while a form is submitting or a text field is being edited. Seeded draw tie-breaking remains independent of the display order.
+- Application suite: 40 tests / 303 assertions. Chrome suite: 3 tests / 53 assertions. RuboCop passes.

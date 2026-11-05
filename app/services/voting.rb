@@ -15,7 +15,9 @@ class Voting
         available_slot = ((1..5).to_a - participant.votes.where(event: event).pluck(:slot)).first
         raise Invalid, "Wykorzystano wszystkie 5 głosów. Cofnij jeden, aby wybrać inną propozycję." unless available_slot
         option ||= event.options.create!(participant: participant, text: text)
-        Vote.create!(event: event, participant: participant, option: option, slot: available_slot)
+        vote = Vote.create!(event: event, participant: participant, option: option, slot: available_slot)
+        event.increment!(:revision)
+        vote
       end
     end
   end
@@ -25,7 +27,9 @@ class Voting
       participant.with_lock do
         raise Invalid, "Głosowanie jest zamknięte." unless event.voting_open?
         # Votes remain immutable; only this window-checked operation removes a row.
-        participant.votes.where(event: event).find(vote_id).delete
+        vote = participant.votes.where(event: event).find(vote_id).delete
+        event.increment!(:revision)
+        vote
       end
     end
   end

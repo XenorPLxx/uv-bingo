@@ -48,11 +48,12 @@ class EventsController < ApplicationController
 
   def prepare_event
     @events = Event.includes(:draw).order(created_at: :desc)
-    @options = @event.options.eligible.order(:created_at)
+    @options = @event.options.eligible
     @query = params[:q].to_s.first(100)
     @options = @options.where("text ILIKE ?", "%#{Option.sanitize_sql_like(@query)}%") if @query.present?
+    @counts = @event.votes.group(:option_id).count
+    @options = @options.sort_by { |option| [ -@counts.fetch(option.id, 0), option.created_at, option.id ] }
     @remaining = current_participant&.votes_remaining(@event)
-    @counts = @event.votes.group(:option_id).count if %w[closed drawn live archived].include?(@event.phase)
     @my_votes = current_participant&.votes&.where(event: @event)&.includes(:option)&.order(:slot)
     @votes_by_option = @my_votes&.index_by(&:option_id) || {}
   end

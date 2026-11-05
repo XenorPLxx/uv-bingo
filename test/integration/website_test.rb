@@ -179,6 +179,39 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "public proposals show current vote totals and reorder after a withdrawal" do
+    first, popular, tied, zero, hidden = [ "Pierwsza propozycja", "Popularna propozycja", "Remis", "Bez głosów", "Wykluczona" ].map do |text|
+      @event.options.create!(participant: @voter, text: text)
+    end
+    own_vote = Voting.cast!(event: @event, participant: @voter, option_id: popular.id)
+    { first => 2, popular => 2, tied => 2, hidden => 5 }.each do |option, count|
+      count.times { Voting.cast!(event: @event, participant: create_participant, option_id: option.id) }
+    end
+    hidden.update!(disqualified_at: Time.current)
+    get event_path(@event)
+    assert_select ".options-list .option-card" do |rows|
+      assert_equal [ popular, first, tied, zero ].map { |option| "option-#{option.id}" }, rows.map { |row| row["id"] }
+    end
+    assert_select ".option-count" do |counts|
+      assert_equal [ "3", "2", "2", "0" ], counts.map { |count| count.text.strip }
+    end
+    assert_select ".option-number, .vote-total", 0
+    get event_path(@event), params: { q: "Remis" }
+    assert_select ".option-card", 1
+    assert_select "#option-#{tied.id} .option-count", "2"
+    get state_event_path(@event)
+    revision = response.parsed_body.fetch("revision")
+    sign_in_as(@voter)
+    delete event_vote_path(@event, own_vote)
+    get state_event_path(@event)
+    assert_equal revision + 1, response.parsed_body.fetch("revision")
+    get event_path(@event)
+    assert_select ".options-list .option-card" do |rows|
+      assert_equal [ first, popular, tied, zero ].map { |option| "option-#{option.id}" }, rows.map { |row| row["id"] }
+    end
+    assert_select "#option-#{popular.id} .option-count", "2"
+  end
+
   test "server renders user text safely" do
     Voting.cast!(event: @event, participant: @voter, text: '<script>alert("x")</script>')
     get event_path(@event)
