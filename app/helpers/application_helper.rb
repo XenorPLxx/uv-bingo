@@ -5,7 +5,7 @@ module ApplicationHelper
   end
 
   def voting_schedule(event)
-    "#{event.opens_at.in_time_zone.strftime('%d.%m %H:%M')} – #{event.closes_at.in_time_zone.strftime('%d.%m.%Y %H:%M')} · Warszawa"
+    "#{event.opens_at.in_time_zone.strftime('%d.%m %H:%M')} – #{event.closes_at.in_time_zone.strftime('%d.%m.%Y %H:%M')}"
   end
 
   def mark_label(mark)

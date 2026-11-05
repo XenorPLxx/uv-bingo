@@ -30,7 +30,7 @@ For local manual testing, create a participant and a single-use token through `b
 - Five vote slots per participant per event, enforced by PostgreSQL constraints and row locks.
 - Adding an option and casting its first vote are one transaction.
 - One vote per distinct option; participants can withdraw their own votes during the voting window and reuse the freed slots. Withdrawing never deletes the option, including a self-submitted one. Duplicate vote retries are idempotent.
-- Submissions, votes, and withdrawals require `opens_at <= now < closes_at`, stored in UTC and displayed in Europe/Warsaw.
+- Submissions, votes, and withdrawals require `opens_at <= now < closes_at`, stored in UTC and displayed in the configured local time.
 - Duplicate text is normalized with Unicode NFKC, whitespace squishing, and case folding. Invalid/duplicate submissions spend nothing.
 - Disqualified options cannot receive more votes or enter the draw. Their existing votes can still be withdrawn by their owners during voting. Admin corrections require a reason and audit record.
 - Before a draw, admins can merge two eligible proposals with a reason. The retained proposal keeps its text and receives the union of voters. A participant who voted for both gets exactly one slot back, reusable while voting is open. Merged source text and authorship remain in admin history, and old voting links resolve to the retained proposal. Merges cannot be undone or performed after the draw.
