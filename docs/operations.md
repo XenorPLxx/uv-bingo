@@ -27,6 +27,8 @@ The entrypoint runs `db:prepare` before Rails starts; do not run an additional m
 
 Use the event links above the hero/board to switch between voting and live events. Multiple voting windows can overlap; each participant has a separate five-vote allowance in each event.
 
+Proposal search updates after a 300 ms typing pause. Enter or **Szukaj** searches immediately; clearing the field restores all proposals. Filtering preserves input focus, proposal drafts and scroll position. The current filter is included in the page URL for sharing or reloading.
+
 1. `/bingo` in the configured test channel, open the private link, enter staging HTTP credentials, confirm login.
 2. Add an option and vote. Each action uses one of five active slots. Withdraw a vote to free a slot; its proposal remains available. Each participant can create at most 20 proposals per event, including withdrawn, excluded and merged proposals. Reaching that cap still allows voting on existing proposals. Choices freeze when voting closes.
 3. To combine duplicates, open the event in `/admin`, expand **Połącz propozycje** under **Propozycje i wyniki**, choose the source and retained proposal, and enter a reason. The retained wording stays; double voters get one slot back. Restore excluded proposals before merging them. The source remains in the moderation history.

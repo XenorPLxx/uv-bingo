@@ -17,9 +17,10 @@
     <div class="voting-layout" id="options">
       <section class="options-section" aria-label="Propozycje do głosowania">
         <div class="voting-feedback" data-event-status-target="feedback" role="status" aria-live="polite" aria-atomic="true"><% %w[voting_notice voting_alert].each do |type| %><% if flash[type] %><div class="flash <%= type == 'voting_alert' ? 'alert' : 'notice' %>"><%= flash[type] %></div><% end %><% end %></div>
-        <%= form_with url: event_path(@event), method: :get, class: "search-form" do |form| %>
-          <%= form.label :q, "Szukaj propozycji", class: "sr-only" %><span aria-hidden="true">⌕</span><%= form.search_field :q, value: @query, placeholder: "Szukaj propozycji…", maxlength: 100 %><%= form.submit "Szukaj", class: "search-button" %>
+        <%= form_with url: event_path(@event), method: :get, class: "search-form", data: { event_status_target: "searchForm", action: "submit->event-status#searchNow" } do |form| %>
+          <%= form.label :q, "Szukaj propozycji", class: "sr-only" %><span aria-hidden="true">⌕</span><%= form.search_field :q, value: @query, placeholder: "Szukaj propozycji…", maxlength: 100, data: { event_status_target: "search", action: "input->event-status#queueSearch search->event-status#queueSearch compositionend->event-status#queueSearch" } %><%= form.submit "Szukaj", class: "search-button" %>
         <% end %>
+        <span class="sr-only" data-event-status-target="searchStatus" role="status" aria-live="polite"></span>
         <div data-event-status-target="options"><%= render "events/voting_options" %></div>
       </section>
       <aside class="voting-sidebar" data-event-status-target="sidebar">

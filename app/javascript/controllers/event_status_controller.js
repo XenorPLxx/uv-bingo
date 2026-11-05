@@ -2,10 +2,15 @@ import { Controller } from "@hotwired/stimulus"
 import { Turbo } from "@hotwired/turbo-rails"
 
 export default class extends Controller {
-  static targets = ["options", "ballot", "addOption", "sidebar", "feedback", "schedule"]
+  static targets = ["options", "ballot", "addOption", "sidebar", "feedback", "schedule", "search", "searchForm", "searchStatus"]
   static values = { url: String, phase: String, revision: Number }
 
   connect() {
+    this.queryVersion = 0
+    this.requestId = 0
+    this.appliedQuery = this.query
+    this.searchPending = false
+    this.searchError = false
     this.timer = setInterval(() => this.refresh(), 15000)
     this.visibility = () => { if (!document.hidden) this.refresh() }
     document.addEventListener("visibilitychange", this.visibility)
@@ -13,18 +18,75 @@ export default class extends Controller {
 
   disconnect() {
     clearInterval(this.timer)
+    clearTimeout(this.searchTimer)
+    this.activeSearch = null
     document.removeEventListener("visibilitychange", this.visibility)
     this.request?.abort()
     this.mutation?.abort()
   }
 
   async refresh() {
-    if (document.hidden || this.saving || this.refreshPromise || !this.element.isConnected) return
+    if (document.hidden || this.saving || this.activeSearch || this.searchPending || this.refreshPromise || !this.element.isConnected) return
     if (this.element.contains(document.activeElement) && document.activeElement.matches("textarea, input:not([type=submit])")) return
-    this.refreshPromise = this.readState().catch(() => {
+    this.refreshPromise = this.readState({ force: this.query !== this.appliedQuery }).catch(() => {
       // Retry on the next poll. The server always checks voting dates and limits.
     }).finally(() => { this.refreshPromise = null })
     await this.refreshPromise
+  }
+
+  get query() { return this.searchTarget.value.slice(0, 100) }
+
+  queueSearch(event) {
+    clearTimeout(this.searchTimer)
+    this.queryVersion += 1
+    this.searchPending = true
+    if (!this.saving) this.request?.abort()
+    if (event?.isComposing) return
+    this.searchTimer = setTimeout(() => this.performSearch(), 300)
+  }
+
+  searchNow(event) {
+    event.preventDefault()
+    this.queueSearch()
+    clearTimeout(this.searchTimer)
+    this.performSearch()
+  }
+
+  async performSearch() {
+    if (!this.element.isConnected || this.saving) return
+    this.searchPending = false
+    const task = Symbol()
+    const version = this.queryVersion
+    this.activeSearch = task
+    this.request?.abort()
+    this.optionsTarget.setAttribute("aria-busy", "true")
+    this.searchStatusTarget.textContent = "Wyszukiwanie…"
+    try {
+      await this.readState({ force: true, search: true })
+    } catch (error) {
+      if (error.name !== "AbortError" && this.activeSearch === task && version === this.queryVersion && this.element.isConnected) {
+        this.searchError = true
+        this.updateVoting(null, { search: true, feedback: { message: "Nie udało się odświeżyć wyników. Spróbuj ponownie.", failed: true } })
+        this.searchStatusTarget.textContent = "Nie udało się odświeżyć wyników."
+      }
+    } finally {
+      if (this.activeSearch === task) {
+        this.activeSearch = null
+        this.optionsTarget.removeAttribute("aria-busy")
+      }
+    }
+  }
+
+  synchronizeSearch(query) {
+    this.appliedQuery = query
+    this.searchPending = false
+    clearTimeout(this.searchTimer)
+    this.element.querySelectorAll('input[type="hidden"][name="q"]').forEach(input => { input.value = query })
+    const url = new URL(window.location.href)
+    if (query) url.searchParams.set("q", query)
+    else url.searchParams.delete("q")
+    if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url)
+    this.searchStatusTarget.textContent = `Wyniki: ${this.optionsTarget.querySelectorAll(".option-card").length}.`
   }
 
   async submit(event) {
@@ -32,6 +94,8 @@ export default class extends Controller {
     if (this.saving) return
     const form = event.currentTarget
     this.saving = true
+    this.activeSearch = null
+    this.optionsTarget.removeAttribute("aria-busy")
     this.element.setAttribute("aria-busy", "true")
     this.request?.abort()
     await this.refreshPromise
@@ -40,8 +104,10 @@ export default class extends Controller {
     let feedback
     let clearDraft = false
     try {
+      const body = new FormData(form)
+      body.set("q", this.query)
       const response = await fetch(form.action, {
-        method: "POST", body: new FormData(form), headers: { Accept: "application/json" }, signal: this.mutation.signal
+        method: "POST", body, headers: { Accept: "application/json" }, signal: this.mutation.signal
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || (response.status === 429 ? "Zbyt wiele kliknięć. Spróbuj za chwilę." : "Nie zapisano zmiany. Odśwież stronę i spróbuj ponownie."))
@@ -56,7 +122,8 @@ export default class extends Controller {
       clearTimeout(timeout)
     }
 
-    const update = { force: true, feedback, clearDraft, excludedOptionId: form.dataset.optionId }
+    this.searchError = false
+    const update = { force: true, mutation: true, feedback, clearDraft, excludedOptionId: form.dataset.optionId }
     try {
       await this.readState(update)
     } catch (_) {
@@ -64,24 +131,39 @@ export default class extends Controller {
     } finally {
       this.saving = false
       this.element.removeAttribute("aria-busy")
+      if (this.searchPending && this.element.isConnected) this.queueSearch()
     }
   }
 
   async readState(update = {}) {
-    this.request = new AbortController()
-    const timeout = setTimeout(() => this.request.abort(), 8000)
+    const request = new AbortController()
+    this.request = request
+    const requestId = ++this.requestId
+    const queryVersion = this.queryVersion
+    const query = this.query
+    const timeout = setTimeout(() => request.abort(), 8000)
     const url = new URL(this.urlValue, window.location.origin)
+    if (query) url.searchParams.set("q", query)
+    else url.searchParams.delete("q")
     url.searchParams.set("revision", this.revisionValue)
     url.searchParams.set("phase", this.phaseValue)
     if (update.force) url.searchParams.set("refresh", "1")
     try {
-      const response = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store", signal: this.request.signal })
+      const response = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store", signal: request.signal })
       if (response.status === 404) { Turbo.visit("/?removed=1", { action: "replace" }); return }
       if (!response.ok) throw new Error("state request failed")
       const state = await response.json()
-      if (!this.element.isConnected || (this.saving && !update.force)) return
+      if (request.signal.aborted || !this.element.isConnected || (this.saving && !update.mutation)) return
+      if (requestId !== this.requestId || queryVersion !== this.queryVersion) {
+        if (update.feedback) this.updateVoting(null, { ...update, search: true })
+        return
+      }
       if (state.html) { Turbo.visit(window.location.href, { action: "replace" }); return }
-      this.updateVoting(state.voting, update)
+      this.updateVoting(state.voting, { ...update, clearSearchError: Boolean(state.voting) && this.searchError, search: update.search || query !== this.appliedQuery })
+      if (state.voting) {
+        this.searchError = false
+        this.synchronizeSearch(query)
+      }
       this.revisionValue = state.revision
       this.phaseValue = state.phase
     } finally {
@@ -89,9 +171,9 @@ export default class extends Controller {
     }
   }
 
-  updateVoting(voting, { feedback, clearDraft = false, excludedOptionId } = {}) {
-    if (!this.element.isConnected || (!voting && !feedback)) return
-    const viewport = this.captureViewport(excludedOptionId)
+  updateVoting(voting, { feedback, clearDraft = false, excludedOptionId, search = false, clearSearchError = false } = {}) {
+    if (!this.element.isConnected || (!voting && !feedback && !clearSearchError)) return
+    const viewport = this.captureViewport(excludedOptionId, search)
     const focused = document.activeElement
     const input = this.addOptionTarget.querySelector("textarea")
     if (input) this.draft = input.value
@@ -118,6 +200,7 @@ export default class extends Controller {
       input.value = ""
       input.dispatchEvent(new Event("input", { bubbles: true }))
     }
+    if (clearSearchError) this.feedbackTarget.replaceChildren()
     if (feedback) {
       const message = document.createElement("div")
       message.className = `flash ${feedback.failed ? "alert" : "notice"}`
@@ -128,7 +211,9 @@ export default class extends Controller {
     if (focused?.id && !focused.isConnected) document.getElementById(focused.id)?.focus({ preventScroll: true })
     this.sidebarTarget.scrollTop = viewport.sidebarScroll
     const anchor = viewport.anchors.find(({ id }) => document.getElementById(id))
-    if (anchor) {
+    if (viewport.searchTop !== null) {
+      window.scrollBy({ top: this.searchFormTarget.getBoundingClientRect().top - viewport.searchTop, behavior: "instant" })
+    } else if (anchor) {
       const delta = document.getElementById(anchor.id).getBoundingClientRect().top - anchor.top
       window.scrollBy({ top: delta, behavior: "instant" })
     } else {
@@ -136,12 +221,12 @@ export default class extends Controller {
     }
   }
 
-  captureViewport(excludedOptionId) {
+  captureViewport(excludedOptionId, search) {
     const changedRow = document.getElementById(`option-${excludedOptionId}`)
     const neighbour = changedRow?.nextElementSibling || changedRow?.previousElementSibling
     const anchors = Array.from(this.optionsTarget.querySelectorAll(".option-card")).filter(row => row !== changedRow).map(row => ({ id: row.id, top: row.getBoundingClientRect().top, bottom: row.getBoundingClientRect().bottom })).filter(row => row.bottom > 0 && row.top < window.innerHeight)
     // Keep the neighbouring row steady when the clicked proposal changes rank.
     anchors.sort((a, b) => Number(b.id === neighbour?.id) - Number(a.id === neighbour?.id))
-    return { anchors, x: window.scrollX, y: window.scrollY, sidebarScroll: this.sidebarTarget.scrollTop }
+    return { anchors, searchTop: search ? this.searchFormTarget.getBoundingClientRect().top : null, x: window.scrollX, y: window.scrollY, sidebarScroll: this.sidebarTarget.scrollTop }
   }
 }

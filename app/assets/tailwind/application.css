@@ -78,8 +78,10 @@
   .voting-shell[aria-busy=true] .vote-button, .voting-shell[aria-busy=true] .ballot-remove, .voting-shell[aria-busy=true] #new-option-submit { pointer-events: none; opacity: .5; }
   .voting-sidebar { position: sticky; top: 24px; align-self: start; max-height: calc(100svh - 48px); overflow-y: auto; scrollbar-width: thin; scrollbar-gutter: stable; padding-right: 4px; }
   .search-form { display: flex; align-items: center; gap: 12px; border: 1px solid #ffffff13; border-radius: 10px; padding: 0 12px 0 17px; margin-bottom: 20px; background: #ffffff03; }
+  .search-form:focus-within { border-color: #b9a1ff90; box-shadow: 0 0 0 2px #b9a1ff20; }
   .search-form>span { font-size: 25px; color: #929ab0; }
-  .search-form input[type=search] { border: 0; background: transparent; padding: 15px 0; font-size: 14px; }
+  .search-form input[type=search] { min-width: 0; border: 0; border-radius: 0; background: transparent; padding: 15px 0; font-size: 14px; }
+  .search-form input[type=search]:focus { outline: none; box-shadow: none; }
   .search-button { color: #b7a2f2; font-size: 14px; padding: 9px; }
   .options-list { display: flex; flex-direction: column; gap: 6px; }
   .option-card { display: grid; grid-template-columns: 3ch minmax(0,1fr) auto; align-items: center; gap: 14px; min-height: 56px; padding: 8px 14px; background: #111525; border: 1px solid #ffffff0d; border-radius: 10px; transition: border-color .2s; }
