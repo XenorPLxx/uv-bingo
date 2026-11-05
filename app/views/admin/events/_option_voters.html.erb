@@ -1,0 +1,6 @@
+<% if names.present? %>
+  <details class="option-voters" id="option-<%= option_id %>-voters">
+    <summary id="option-<%= option_id %>-voters-toggle">Kto głosował</summary>
+    <ul aria-label="Głosujący"><% names.each do |name| %><li><%= name %></li><% end %></ul>
+  </details>
+<% end %>

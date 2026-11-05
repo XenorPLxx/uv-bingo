@@ -1,0 +1,24 @@
+<% content_for :title, "Oddane głosy · #{@event.title}" %>
+<div class="admin-heading"><div><span class="eyebrow">PANEL ADMINISTRACJI · <%= @event.title %></span><h1>Oddane głosy</h1></div><%= link_to "← Wróć do wydarzenia", admin_event_path(@event), class: "button secondary" %></div>
+<%= render "admin/events/vote_tabs" %>
+<section class="panel">
+  <p class="muted">Od najnowszych. Cofnięte głosy nie są przechowywane. Po połączeniu propozycji głos jest widoczny przy propozycji, która pozostała.</p>
+  <% if @votes.empty? %>
+    <p class="empty-list">Nikt jeszcze nie zagłosował.</p>
+  <% else %>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th scope="col">Czas</th><th scope="col">Głosujący</th><th scope="col">Propozycja</th></tr></thead>
+        <tbody>
+          <% @votes.each do |vote| %>
+            <tr id="vote-<%= vote.id %>">
+              <td class="nowrap"><%= admin_time(vote.created_at) %></td>
+              <td><%= link_to vote.participant.display_name, admin_participant_path(vote.participant) %></td>
+              <td><%= vote.option.text %> <%= option_status_tag(vote.option) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

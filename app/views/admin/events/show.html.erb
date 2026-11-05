@@ -1,5 +1,9 @@
 <div class="admin-heading"><div><span class="eyebrow">PANEL ADMINISTRACJI · <%= phase_label(@event.phase) %></span><h1><%= @event.title %></h1></div><div class="button-row"><%= link_to "Otwórz stronę wydarzenia ↗", event_path(@event), class: "button secondary" %><%= link_to "Usuń wydarzenie", deletion_admin_event_path(@event), class: "button danger" %></div></div>
-<div class="admin-stats"><div class="panel"><strong><%= @event.options.eligible.count %></strong><span>aktywnych propozycji</span></div><div class="panel"><strong><%= @event.votes.count %></strong><span>oddanych głosów</span></div><div class="panel"><strong><%= @event.votes.distinct.count(:participant_id) %></strong><span>głosujących</span></div></div>
+<div class="admin-stats">
+  <%= link_to "#moderation", class: "panel stat-link" do %><strong><%= @event.options.eligible.count %></strong><span>aktywnych propozycji <span aria-hidden="true">→</span></span><% end %>
+  <%= link_to votes_admin_event_path(@event), class: "panel stat-link" do %><strong><%= @event.votes.count %></strong><span>oddanych głosów <span aria-hidden="true">→</span></span><% end %>
+  <%= link_to voters_admin_event_path(@event), class: "panel stat-link" do %><strong><%= @event.votes.distinct.count(:participant_id) %></strong><span>głosujących <span aria-hidden="true">→</span></span><% end %>
+</div>
 <section class="panel admin-actions"><h2>Sterowanie wydarzeniem</h2>
   <% if @event.draw %><p>Losowanie zapisano. Ponowne odtworzenie pokaże ten sam układ planszy.</p><div class="button-row"><%= link_to "Odtwórz odsłonięcie ✦", reveal_event_path(@event), class: "button secondary" %><%= link_to "Zapis losowania ↓", draw_record_event_path(@event), class: "button secondary" %>
     <% if @event.state == 'collecting' %><%= button_to "Rozpocznij transmisję", transition_admin_event_path(@event), params: { state: 'live' }, class: "button primary", form: { data: { turbo_confirm: 'Uruchomić propozycje i oznaczanie pól?' } } %><% elsif @event.state == 'live' %><%= button_to "Zakończ i zarchiwizuj", transition_admin_event_path(@event), params: { state: 'archived' }, class: "button danger", form: { data: { turbo_confirm: 'Zakończyć wydarzenie? Plansza pozostanie dostępna tylko do odczytu.' } } %><% end %></div>
@@ -30,6 +34,7 @@
         <div>
           <strong><%= option.text %></strong>
           <p><%= @counts.fetch(option.id, 0) %> głosów · <%= option.participant.display_name %><%= ' · WYKLUCZONA' if option.disqualified_at %></p>
+          <%= render "option_voters", option_id: option.id, names: @voters_by_option[option.id] %>
           <% if option.merged_into %><p class="merge-destination">Połączona z: <%= link_to option.merged_into.text, "#moderation-option-#{option.merged_into_id}" %></p><% end %>
         </div>
         <% unless @event.draw || option.merged_into_id %>

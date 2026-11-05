@@ -1,0 +1,4 @@
+<nav class="admin-tabs" aria-label="Listy głosów">
+  <%= link_to votes_admin_event_path(@event), class: "admin-tab", aria: { current: action_name == "votes" ? "page" : nil } do %>Oddane głosy <span><%= @event.votes.count %></span><% end %>
+  <%= link_to voters_admin_event_path(@event), class: "admin-tab", aria: { current: action_name == "voters" ? "page" : nil } do %>Głosujący <span><%= @event.votes.distinct.count(:participant_id) %></span><% end %>
+</nav>

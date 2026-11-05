@@ -1,0 +1,33 @@
+<% content_for :title, "Uczestnicy · Administracja" %>
+<div class="admin-heading"><div><span class="eyebrow">PANEL ADMINISTRACJI</span><h1>Uczestnicy</h1></div><%= link_to "← Wydarzenia", admin_root_path, class: "button secondary" %></div>
+<section class="panel">
+  <%= form_with url: admin_participants_path, method: :get, class: "search-form" do |form| %>
+    <%= form.label :q, "Szukaj uczestnika", class: "sr-only" %><span aria-hidden="true">⌕</span><%= form.search_field :q, value: @query, placeholder: "Nazwa lub Discord ID…", maxlength: 100 %><%= form.submit "Szukaj", class: "search-button" %>
+  <% end %>
+  <p class="muted">
+    <% if @query.present? %>Wyniki: <%= @participants.size %> z <%= @total_count %>. <%= link_to "Pokaż wszystkich", admin_participants_path, class: "text-link" %>
+    <% else %>Konta utworzone przez komendę na Discordzie: <%= @total_count %>. Od najnowszych.<% end %>
+  </p>
+  <% if @participants.empty? %>
+    <p class="empty-list"><%= @query.present? ? "Brak wyników." : "Nikt jeszcze się nie zarejestrował." %></p>
+  <% else %>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th scope="col">Uczestnik</th><th scope="col">Discord ID</th><th scope="col">Dołączył</th><th scope="col">Ostatnie logowanie</th><th scope="col" class="numeric">Głosy</th><th scope="col" class="numeric">Wydarzenia</th><th scope="col" class="numeric">Propozycje</th></tr></thead>
+        <tbody>
+          <% @participants.each do |participant| %>
+            <tr id="participant-<%= participant.id %>">
+              <td><%= link_to participant.display_name, admin_participant_path(participant) %><% if participant.admin? %> <span class="tag">ADMIN</span><% end %></td>
+              <td class="nowrap"><code><%= participant.discord_id %></code></td>
+              <td class="nowrap"><%= admin_time(participant.created_at) %></td>
+              <td class="nowrap"><%= admin_time(@last_logins[participant.id]) %></td>
+              <td class="numeric"><%= @vote_counts.fetch(participant.id, 0) %></td>
+              <td class="numeric"><%= @event_counts.fetch(participant.id, 0) %></td>
+              <td class="numeric"><%= @option_counts.fetch(participant.id, 0) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

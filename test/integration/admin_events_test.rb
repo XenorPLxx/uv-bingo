@@ -58,6 +58,84 @@ class AdminEventsTest < ActionDispatch::IntegrationTest
     assert_nil source.reload.merged_into_id
   end
 
+  test "vote and voter stats open per event lists" do
+    ala = create_participant(display_name: "Ala")
+    bartek = create_participant(display_name: "bartek")
+    first = travel(-2.minutes) { Voting.cast!(event: @event, participant: bartek, text: "Pierwsza propozycja").option }
+    second = travel(-1.minute) { Voting.cast!(event: @event, participant: ala, text: "Druga propozycja").option }
+    Voting.cast!(event: @event, participant: ala, option_id: first.id)
+    second.update!(disqualified_at: Time.current, moderation_reason: "Test")
+    other_event = create_event
+    Voting.cast!(event: other_event, participant: create_participant(display_name: "Spoza wydarzenia"), text: "Inna")
+
+    get admin_event_path(@event)
+    assert_select "a.stat-link[href=?] strong", votes_admin_event_path(@event), "3"
+    assert_select "a.stat-link[href=?] strong", voters_admin_event_path(@event), "2"
+    assert_select "a.stat-link[href='#moderation']"
+    assert_select "#moderation-option-#{first.id} .option-voters li" do |names|
+      assert_equal [ "bartek", "Ala" ], names.map(&:text)
+    end
+
+    get votes_admin_event_path(@event)
+    assert_response :success
+    assert_select ".admin-tab[aria-current=page]", /Oddane głosy\s*3/
+    assert_select ".data-table tbody tr", 3
+    assert_select ".data-table tbody tr:first-child td:nth-child(2)", "Ala"
+    assert_select ".data-table tbody tr:first-child td:nth-child(3)", "Pierwsza propozycja"
+    assert_select ".data-table tbody tr td .status-tag", "WYKLUCZONA"
+    assert_no_match "Spoza wydarzenia", response.body
+
+    get voters_admin_event_path(@event)
+    assert_response :success
+    assert_select ".admin-tab[aria-current=page]", /Głosujący\s*2/
+    assert_select ".voter-item" do |items|
+      assert_equal [ "voter-#{ala.id}", "voter-#{bartek.id}" ], items.map { |item| item["id"] }
+    end
+    assert_select "#voter-#{ala.id} .voter-count", "2/5"
+    assert_select "#voter-#{ala.id} .voter-votes li", 2
+    assert_select "#voter-#{ala.id} .voter-votes li:first-child", /Druga propozycja/
+    assert_select "#voter-#{ala.id} a[href=?]", admin_participant_path(ala)
+    assert_no_match "Spoza wydarzenia", response.body
+  end
+
+  test "participant list shows activity and links to per event details" do
+    voter = create_participant(display_name: "Aktywny Gracz")
+    idle = create_participant(display_name: "Bez głosów")
+    option = Voting.cast!(event: @event, participant: voter, text: "Moja propozycja").option
+    Voting.cast!(event: @event, participant: voter, option_id: seed_options(@event, 1).first.id)
+    other_event = create_event(title: "Drugie wydarzenie")
+    Voting.cast!(event: other_event, participant: voter, text: "Druga lista")
+
+    get admin_root_path
+    assert_select "a[href=?]", admin_participants_path, "Uczestnicy"
+    get admin_participants_path
+    assert_response :success
+    assert_select "#participant-#{voter.id} td" do |cells|
+      assert_equal [ "Aktywny Gracz", voter.discord_id, "3", "2", "2" ], cells.to_a.values_at(0, 1, 4, 5, 6).map { |cell| cell.text.strip }
+    end
+    assert_select "#participant-#{idle.id} td.numeric", text: "0", count: 3
+    assert_select "#participant-#{@admin.id} .tag", "ADMIN"
+    assert_select "#participant-#{@admin.id} td:nth-child(4)", /\d{2}\.\d{2}\.\d{4}/
+    assert_select "#participant-#{idle.id} td:nth-child(4)", "—"
+
+    get admin_participants_path, params: { q: "aktywny" }
+    assert_select ".data-table tbody tr", 1
+    get admin_participants_path, params: { q: idle.discord_id }
+    assert_select ".data-table tbody tr", 1
+    assert_select "#participant-#{idle.id}"
+
+    get admin_participant_path(voter)
+    assert_response :success
+    assert_select "h1", "Aktywny Gracz"
+    assert_select ".participant-event", 2
+    assert_select "#event-#{@event.id} h3", /Głosy\s*2\/5/
+    assert_select "#event-#{@event.id} h3", /Dodane propozycje\s*1/
+    assert_select "#event-#{@event.id}", /#{option.text}/
+    assert_select "#event-#{other_event.id} a[href=?]", admin_event_path(other_event), "Drugie wydarzenie"
+    get admin_participant_path(idle)
+    assert_select ".empty-list", "Brak głosów i propozycji."
+  end
+
   test "draw action requires twenty five eligible proposals with at least one vote" do
     options = seed_options(@event, 26)
     @event.votes.where(option: options.last(2)).delete_all

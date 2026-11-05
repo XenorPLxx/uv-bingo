@@ -127,6 +127,57 @@ class BingoTest < ApplicationSystemTestCase
     save_screenshot(Rails.root.join("tmp/screenshots/voting-in-place-mobile.png"))
   end
 
+  test "signed in participants open voter names from the vote count and the dialog follows refreshes" do
+    watched, other, lonely = 3.times.map { |index| @event.options.create!(participant: @voter, text: "Propozycja #{index + 1}") }
+    Voting.cast!(event: @event, participant: create_participant(display_name: "Fanka Wiedźmina"), option_id: watched.id)
+    Voting.cast!(event: @event, participant: create_participant(display_name: "Kolega z czatu"), option_id: other.id)
+    lonely_vote = Voting.cast!(event: @event, participant: create_participant(display_name: "Samotny Głos"), option_id: lonely.id)
+    visit event_path(@event)
+    assert_selector "#option-#{watched.id} span.option-count", text: "1"
+    assert_no_selector "button.option-count"
+
+    browser_sign_in(@voter)
+    assert_no_text "Fanka Wiedźmina"
+    find("#option-#{watched.id}-count").click
+    within("dialog#voters-dialog[open]") do
+      assert_selector "h2", text: watched.text
+      assert_text "KTO GŁOSOWAŁ · 1"
+      assert_selector "li", text: "Fanka Wiedźmina"
+    end
+    Voting.cast!(event: @event, participant: create_participant(display_name: "Nowy Widz"), option_id: watched.id)
+    page.execute_script("window.Stimulus.getControllerForElementAndIdentifier(document.querySelector('.voting-shell'), 'event-status').refresh()")
+    within("dialog#voters-dialog[open]") do
+      assert_text "KTO GŁOSOWAŁ · 2"
+      assert_equal [ "Fanka Wiedźmina", "Nowy Widz" ], all("li").map(&:text)
+    end
+    save_screenshot(Rails.root.join("tmp/screenshots/voters-desktop.png"))
+    find("#voters-dialog .dialog-close").click
+    assert_no_selector "dialog[open]"
+    assert_equal "option-#{watched.id}-count", page.evaluate_script("document.activeElement.id")
+
+    within("#option-#{other.id}") { click_button "Głosuję +1" }
+    assert_selector ".voting-feedback", text: "Głos zapisany."
+    find("#option-#{other.id}-count").click
+    assert_selector "dialog#voters-dialog[open] li", text: "Tester UV"
+    find("#voters-dialog .dialog-close").send_keys(:escape)
+    assert_no_selector "dialog[open]"
+
+    find("#option-#{lonely.id}-count").click
+    assert_selector "dialog#voters-dialog[open] li", text: "Samotny Głos"
+    Voting.withdraw!(event: @event, participant: lonely_vote.participant, vote_id: lonely_vote.id)
+    page.execute_script("window.Stimulus.getControllerForElementAndIdentifier(document.querySelector('.voting-shell'), 'event-status').refresh()")
+    assert_no_selector "dialog[open]"
+    assert_selector "#option-#{lonely.id} span.option-count", text: "0"
+
+    mobile_viewport
+    find("#option-#{watched.id}-count").click
+    assert_selector "dialog#voters-dialog[open] li", count: 2
+    assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > window.innerWidth")
+    save_screenshot(Rails.root.join("tmp/screenshots/voters-mobile.png"))
+    page.driver.browser.action.move_to_location(5, 5).click.perform
+    assert_no_selector "dialog[open]"
+  end
+
   test "inline proposals and admin decisions update other viewers from both board views" do
     ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
     seed_options(@event, 25).each_with_index do |option, index|

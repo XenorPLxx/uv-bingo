@@ -1,0 +1,31 @@
+<% content_for :title, "#{@participant.display_name} · Uczestnicy" %>
+<div class="admin-heading"><div><span class="eyebrow">PANEL ADMINISTRACJI · UCZESTNIK</span><h1><%= @participant.display_name %></h1></div><%= link_to "← Uczestnicy", admin_participants_path, class: "button secondary" %></div>
+<dl class="deletion-summary participant-summary">
+  <div><dt>Discord ID</dt><dd><code><%= @participant.discord_id %></code></dd></div>
+  <div><dt>Dołączył</dt><dd><%= admin_time(@participant.created_at) %></dd></div>
+  <div><dt>Ostatnie logowanie</dt><dd><%= admin_time(@last_login) %></dd></div>
+  <div><dt>Rola</dt><dd><%= @participant.admin? ? "Administrator" : "Uczestnik" %></dd></div>
+</dl>
+<% if @events.empty? %>
+  <section class="panel"><p class="empty-list">Brak głosów i propozycji.</p></section>
+<% end %>
+<% @events.each do |event| %>
+  <% votes = @votes_by_event.fetch(event.id, []); options = @options_by_event.fetch(event.id, []) %>
+  <section class="panel participant-event" id="event-<%= event.id %>">
+    <div class="panel-heading"><h2><%= link_to event.title, admin_event_path(event) %></h2><span class="tag"><%= phase_label(event.phase) %></span></div>
+    <div class="form-columns">
+      <div>
+        <h3>Głosy <span class="muted"><%= votes.size %>/5</span></h3>
+        <% if votes.any? %>
+          <ol class="voter-votes"><% votes.each do |vote| %><li><span><%= vote.option.text %> <%= option_status_tag(vote.option) %></span><time datetime="<%= vote.created_at.iso8601 %>"><%= admin_time(vote.created_at) %></time></li><% end %></ol>
+        <% else %><p class="muted">Brak głosów.</p><% end %>
+      </div>
+      <div>
+        <h3>Dodane propozycje <span class="muted"><%= options.size %></span></h3>
+        <% if options.any? %>
+          <ol class="voter-votes"><% options.each do |option| %><li><span><%= option.text %> <%= option_status_tag(option) %></span><time datetime="<%= option.created_at.iso8601 %>"><%= admin_time(option.created_at) %></time></li><% end %></ol>
+        <% else %><p class="muted">Brak propozycji.</p><% end %>
+      </div>
+    </div>
+  </section>
+<% end %>

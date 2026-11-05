@@ -28,6 +28,15 @@ module Admin
       prepare_deletion
     end
 
+    def votes
+      @votes = @event.votes.includes(:participant, :option).order(created_at: :desc, id: :desc)
+    end
+
+    def voters
+      @voters = @event.votes.includes(:participant, :option).order(:created_at, :id).group_by(&:participant)
+        .sort_by { |participant, _| [ participant.display_name.downcase, participant.id ] }
+    end
+
     def destroy
       EventDeletion.call(event: @event, confirmation: params[:confirmation])
       Rails.logger.info("Event deleted: event_id=#{@event.id} participant_id=#{current_participant.id}")
@@ -131,6 +140,7 @@ module Admin
 
     def prepare_show
       @counts = @event.votes.group(:option_id).count
+      @voters_by_option = @event.voter_names_by_option
       @options = @event.options.includes(:participant, :merged_into).sort_by { |option| [ -@counts.fetch(option.id, 0), option.id ] }
       @merge_options = @options.reject { |option| option.disqualified_at || option.merged_into_id }
       @voted_option_count = @event.options.eligible.with_votes.count

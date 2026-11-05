@@ -47,6 +47,10 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     patch admin_event_path(@event), params: { event: { title: "Zmienione" } }
     assert_response :forbidden
     assert_equal "TGA Test", @event.reload.title
+    [ admin_participants_path, admin_participant_path(@voter), votes_admin_event_path(@event), voters_admin_event_path(@event) ].each do |path|
+      get path
+      assert_response :forbidden, path
+    end
   end
 
   test "admin can manage events but cannot reopen or moderate a drawn event" do
@@ -266,6 +270,36 @@ class WebsiteTest < ActionDispatch::IntegrationTest
       assert_equal [ first, popular, tied, zero ].map { |option| "option-#{option.id}" }, rows.map { |row| row["id"] }
     end
     assert_select "#option-#{popular.id} .option-count", "2"
+  end
+
+  test "voter names are shown to signed in participants only, including refreshed fragments" do
+    option = @event.options.create!(participant: @voter, text: "Propozycja z głosami")
+    empty = @event.options.create!(participant: @voter, text: "Propozycja bez głosów")
+    first = create_participant(display_name: "Pierwsza Osoba")
+    second = create_participant(display_name: "<b>Druga</b> Osoba")
+    travel(-1.minute) { Voting.cast!(event: @event, participant: first, option_id: option.id) }
+    Voting.cast!(event: @event, participant: second, option_id: option.id)
+
+    get event_path(@event)
+    assert_select "#option-#{option.id} span.option-count", "2"
+    assert_select "button.option-count, template, dialog", 0
+    assert_no_match "Pierwsza Osoba", response.body
+    get state_event_path(@event), params: { refresh: "1" }
+    assert_no_match "Pierwsza Osoba", response.parsed_body.dig("voting", "options")
+
+    sign_in_as(@voter)
+    get event_path(@event)
+    assert_select "dialog#voters-dialog", 1
+    assert_select "#option-#{option.id} button.option-count[aria-haspopup=dialog][data-option-id=?]", option.id.to_s, "2"
+    assert_select "#option-#{option.id} template#option-#{option.id}-voters[data-title=?] li", option.text do |names|
+      assert_equal [ "Pierwsza Osoba", "<b>Druga</b> Osoba" ], names.map(&:text)
+    end
+    assert_select "#option-#{empty.id} span.option-count", "0"
+    assert_select "#option-#{empty.id} button.option-count, #option-#{empty.id}-voters", 0
+    assert_select "#option-#{option.id} b", 0
+    get state_event_path(@event), params: { refresh: "1" }
+    fragment = Nokogiri::HTML5.fragment(response.parsed_body.dig("voting", "options"))
+    assert_equal [ "Pierwsza Osoba", "<b>Druga</b> Osoba" ], fragment.css("#option-#{option.id}-voters li").map(&:text)
   end
 
   test "event deletion requires admin access and exact typed confirmation" do

@@ -1,0 +1,22 @@
+<% content_for :title, "Głosujący · #{@event.title}" %>
+<div class="admin-heading"><div><span class="eyebrow">PANEL ADMINISTRACJI · <%= @event.title %></span><h1>Głosujący</h1></div><%= link_to "← Wróć do wydarzenia", admin_event_path(@event), class: "button secondary" %></div>
+<%= render "admin/events/vote_tabs" %>
+<section class="panel">
+  <p class="muted">Alfabetycznie. Przy każdej osobie jej głosy w kolejności oddania.</p>
+  <% if @voters.empty? %>
+    <p class="empty-list">Nikt jeszcze nie zagłosował.</p>
+  <% else %>
+    <div class="voter-list">
+      <% @voters.each do |participant, votes| %>
+        <div class="voter-item" id="voter-<%= participant.id %>">
+          <div class="voter-head"><%= link_to participant.display_name, admin_participant_path(participant) %><span class="voter-count"><%= votes.size %>/5</span></div>
+          <ol class="voter-votes">
+            <% votes.each do |vote| %>
+              <li><span><%= vote.option.text %> <%= option_status_tag(vote.option) %></span><time datetime="<%= vote.created_at.iso8601 %>"><%= admin_time(vote.created_at) %></time></li>
+            <% end %>
+          </ol>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</section>

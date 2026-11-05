@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { Turbo } from "@hotwired/turbo-rails"
 
 export default class extends Controller {
-  static targets = ["options", "ballot", "addOption", "sidebar", "feedback", "schedule", "search", "searchForm", "searchStatus"]
+  static targets = ["options", "ballot", "addOption", "sidebar", "feedback", "schedule", "search", "searchForm", "searchStatus", "voters", "votersTitle", "votersCount", "votersList"]
   static values = { url: String, phase: String, revision: Number }
 
   connect() {
@@ -181,6 +181,8 @@ export default class extends Controller {
 
     if (voting) {
       this.optionsTarget.innerHTML = voting.options
+      // An open voter list follows the refreshed votes, or closes when the option has none left.
+      if (this.hasVotersTarget && this.votersTarget.open && !this.renderVoters()) this.votersTarget.close()
       this.ballotTarget.innerHTML = voting.ballot
       this.scheduleTarget.innerHTML = voting.schedule
       // Keep the existing form and its draft/preview while it remains available.
@@ -219,6 +221,33 @@ export default class extends Controller {
     } else {
       window.scrollTo({ left: viewport.x, top: viewport.y, behavior: "instant" })
     }
+  }
+
+  openVoters(event) {
+    if (!this.hasVotersTarget) return
+    this.votersOptionId = event.currentTarget.dataset.optionId
+    if (this.renderVoters()) this.votersTarget.showModal()
+  }
+
+  closeVoters() { this.votersTarget.close() }
+
+  closeVotersOnBackdrop(event) {
+    if (event.target === this.votersTarget) this.votersTarget.close()
+  }
+
+  votersClosed() {
+    // The opening button may have been replaced by a refresh while the dialog was open.
+    document.getElementById(`option-${this.votersOptionId}-count`)?.focus({ preventScroll: true })
+    this.votersOptionId = null
+  }
+
+  renderVoters() {
+    const names = document.getElementById(`option-${this.votersOptionId}-voters`)
+    if (!names) return false
+    this.votersTitleTarget.textContent = names.dataset.title
+    this.votersListTarget.replaceChildren(names.content.cloneNode(true))
+    this.votersCountTarget.textContent = `KTO GŁOSOWAŁ · ${this.votersListTarget.children.length}`
+    return true
   }
 
   captureViewport(excludedOptionId, search) {

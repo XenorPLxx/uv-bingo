@@ -24,6 +24,17 @@ module ApplicationHelper
     "#{event.opens_at.in_time_zone.strftime('%d.%m %H:%M')} – #{event.closes_at.in_time_zone.strftime('%d.%m.%Y %H:%M')}"
   end
 
+  def admin_time(time)
+    time ? time.in_time_zone.strftime("%d.%m.%Y %H:%M") : "—"
+  end
+
+  def option_status_tag(option)
+    label = if option.merged_into_id then "POŁĄCZONA"
+    elsif option.disqualified_at then "WYKLUCZONA"
+    end
+    tag.span(label, class: "tag status-tag") if label
+  end
+
   def mark_label(mark)
     { "blank" => "bez oznaczenia", "question" => "? do dyskusji", "cross" => "X potwierdzone" }.fetch(mark)
   end

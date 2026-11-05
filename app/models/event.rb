@@ -25,6 +25,12 @@ class Event < ApplicationRecord
     "open"
   end
 
+  # Display names of each option's voters, in the order the votes were cast.
+  def voter_names_by_option
+    votes.joins(:participant).order(:created_at, :id).pluck(:option_id, "participants.display_name")
+      .group_by(&:first).transform_values { |rows| rows.map(&:last) }
+  end
+
   def broadcast_update!
     ActionCable.server.broadcast("event:#{id}", { revision: revision })
   rescue StandardError => error

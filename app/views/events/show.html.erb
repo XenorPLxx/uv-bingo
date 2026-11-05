@@ -32,5 +32,16 @@
         <div class="how-it-works"><h2>Tworzenie planszy</h2><p>Na planszę trafi 25 propozycji z największą liczbą głosów. Pierwsza zajmie środek, a pozostałe pola zostaną rozmieszczone losowo. Remisy rozstrzyga losowanie.</p></div>
       </aside>
     </div>
+    <% if current_participant %>
+      <dialog class="voters-dialog" id="voters-dialog" aria-labelledby="voters-dialog-title" data-event-status-target="voters" data-action="click->event-status#closeVotersOnBackdrop close->event-status#votersClosed">
+        <div class="voters-dialog-body">
+          <div class="voters-dialog-head">
+            <div><span class="eyebrow" data-event-status-target="votersCount"></span><h2 id="voters-dialog-title" data-event-status-target="votersTitle"></h2></div>
+            <button type="button" class="dialog-close" data-action="event-status#closeVoters" aria-label="Zamknij">×</button>
+          </div>
+          <ul class="voter-chips" aria-label="Głosujący" data-event-status-target="votersList"></ul>
+        </div>
+      </dialog>
+    <% end %>
   </div>
 <% end %>

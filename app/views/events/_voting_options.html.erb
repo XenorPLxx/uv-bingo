@@ -2,7 +2,13 @@
   <% @options.each do |option| %>
     <% vote = @votes_by_option[option.id]; voted = vote.present? %>
     <article class="option-card <%= 'selected' if voted %>" id="option-<%= option.id %>" role="listitem">
-      <span class="option-count" aria-label="Liczba głosów: <%= @counts.fetch(option.id, 0) %>" title="Liczba głosów"><%= @counts.fetch(option.id, 0) %></span>
+      <% count = @counts.fetch(option.id, 0); voters = @voters_by_option[option.id] %>
+      <% if voters.present? %>
+        <button type="button" class="option-count" id="option-<%= option.id %>-count" data-option-id="<%= option.id %>" data-action="event-status#openVoters" aria-haspopup="dialog" aria-label="Liczba głosów: <%= count %>. Pokaż, kto głosował" title="Kto głosował"><%= count %></button>
+        <template id="option-<%= option.id %>-voters" data-title="<%= option.text %>"><% voters.each do |name| %><li><%= name %></li><% end %></template>
+      <% else %>
+        <span class="option-count" aria-label="Liczba głosów: <%= count %>" title="Liczba głosów"><%= count %></span>
+      <% end %>
       <h2><%= option.text %><% if voted %><span class="sr-only"> (Twój głos)</span><% end %></h2>
       <div class="option-bottom">
         <% if voted && @event.voting_open? %><%= button_to "Cofnij głos", event_vote_path(@event, vote), method: :delete, params: { q: @query.presence }, class: "button vote-button withdraw-button", id: "option-#{option.id}-vote", form: { data: { action: "submit->event-status#submit", option_id: option.id } } %>

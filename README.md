@@ -35,12 +35,13 @@ For local manual testing, create a participant and a single-use token through `b
 - Duplicate text is normalized with Unicode NFKC, whitespace squishing, and case folding. Invalid/duplicate submissions spend nothing.
 - Disqualified options cannot receive more votes or enter the draw. Their existing votes can still be withdrawn by their owners during voting. Admin corrections require a reason and audit record.
 - Before a draw, admins can merge two eligible proposals with a reason. The retained proposal keeps its text and receives the union of voters. A participant who voted for both gets exactly one slot back, reusable while voting is open. Merged source text and authorship remain in admin history, and old voting links resolve to the retained proposal. Merges cannot be undone or performed after the draw.
-- Vote totals are public during voting. Proposals are ordered by descending vote count, with creation time and ID breaking display ties. Totals and ordering refresh as votes change; this display order does not affect the seeded draw tie-break.
+- Vote totals are public during voting. Signed-in participants can click a proposal's total to see who voted for it, in voting order; anonymous visitors see totals only. Proposals are ordered by descending vote count, with creation time and ID breaking display ties. Totals and ordering refresh as votes change; this display order does not affect the seeded draw tie-break.
 - Draws require at least 25 eligible options with votes and a closed window. The top 25 qualify. Equal totals are ordered using seeded SHA-256 keys; the leading option occupies position 12 (center), and the remaining 24 are independently shuffled.
 - Draws store the full eligible snapshot, SHA-256 digest, seed, algorithm version, ordered option IDs, actor and timestamp. Cell text is copied at draw time. Refreshing/replaying never generates another draw. Export is available from the board page.
 - During live play, each participant has one changeable `?`/`X` proposal per cell revision, independent of their voting allowance. Admin marks advance the cell revision; older proposals stay in history but stop counting.
 - Community counters are clickable `?`/`X` suggestions; colored buttons on the right are admin decisions. Clicking a selected mark again clears it. Both regular and presentation views support these actions without dialogs or navigation; anonymous viewers see live counters and marks.
 - Only official `X` marks complete rows, columns and diagonals. Archived events are read-only.
+- Admins can open per-event lists of all votes and of voters with their choices from the event statistics, and a participant list with each account's votes and proposals per event. Withdrawn votes are not stored, so these lists show current votes only.
 - Admins can permanently delete an event after reviewing its data counts and typing its exact slug. Deletion removes its options, votes, board, mark suggestions and audit history in one transaction; participant accounts and other events remain. Open viewers return to the homepage when the event disappears.
 
 The draw record is reproducible, not an externally tamper-proof lottery. Database operators remain trusted.
@@ -49,7 +50,7 @@ The draw record is reproducible, not an externally tamper-proof lottery. Databas
 
 See [Discord setup](docs/discord.md). Runtime uses signed HTTP interactions, not a persistent Gateway connection. The bot token is needed for setup/registration and is not deployed into the Rails container. Participant sessions last 30 days; login tokens last 10 minutes and require an explicit POST confirmation so previews do not consume them. The quota follows the Discord account across devices.
 
-Only configured `ADMIN_DISCORD_IDS` have admin permissions. The database stores Discord IDs and display names, votes, and gameplay history. No email, Discord password, or message history is collected. Local environment files, login token parameters, credentials, and backups are excluded from source control/build context as applicable.
+Only configured `ADMIN_DISCORD_IDS` have admin permissions. The database stores Discord IDs and display names, votes, and gameplay history. Voters' display names are visible to other signed-in participants; Discord IDs are shown to admins only. No email, Discord password, or message history is collected. Local environment files, login token parameters, credentials, and backups are excluded from source control/build context as applicable.
 
 ## Testing
 
