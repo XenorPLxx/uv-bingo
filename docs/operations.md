@@ -29,6 +29,8 @@ Use the event links above the hero/board to switch between voting and live event
 
 Proposal search updates after a 300 ms typing pause. Enter or **Szukaj** searches immediately; clearing the field restores all proposals. Filtering preserves input focus, proposal drafts and scroll position. The current filter is included in the page URL for sharing or reloading.
 
+Public pages render [Open Graph](https://ogp.me/) and X large-image card metadata in the initial HTML. Event previews use the event title and description, with the community artwork as the image. Absolute preview URLs use `APP_URL`; search parameters and login tokens are excluded. The homepage keeps its root canonical URL, while presentation/reveal views point to their event page. Account and admin pages use generic site metadata. The artwork is served through the normal asset pipeline with its dimensions and alternative text included in the tags.
+
 1. `/bingo` in the configured test channel, open the private link, enter staging HTTP credentials, confirm login.
 2. Add an option and vote. Each action uses one of five active slots. Withdraw a vote to free a slot; its proposal remains available. Each participant can create at most 20 proposals per event, including withdrawn, excluded and merged proposals. Reaching that cap still allows voting on existing proposals. Choices freeze when voting closes.
 3. To combine duplicates, open the event in `/admin`, expand **Połącz propozycje** under **Propozycje i wyniki**, choose the source and retained proposal, and enter a reason. The retained wording stays; double voters get one slot back. Restore excluded proposals before merging them. The source remains in the moderation history.

@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="pl" prefix="og: https://ogp.me/ns#">
   <head>
+    <meta charset="utf-8">
     <title><%= content_for(:title) || "TGA Bingo · The Game Awards" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="turbo-cache-control" content="no-cache">
     <meta name="theme-color" content="#080b17">
-    <meta name="description" content="Bingo społeczności UV o grach na The Game Awards. Głosowanie na propozycje i plansza aktualizowana na żywo.">
+    <%= render "shared/social_metadata", metadata: social_preview_metadata %>
     <%= csrf_meta_tags %><%= csp_meta_tag %>
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>

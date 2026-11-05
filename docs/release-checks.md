@@ -135,3 +135,9 @@ These are clearly labeled test events. Production has configuration only and has
 - The mobile hero displays the community artwork as a separate banner above the title and description. Text and the voting shortcut no longer overlap the image. The header, introductory spacing and voting-status panel are more compact, with touch targets of at least 44px for the menu and primary actions.
 - Chrome checks at 320, 360, 390, 430 and 760px confirm no page overflow, no overlap between hero artwork and text, usable menu/event controls and correct admin/member/guest navigation. Checked event switching, admin navigation, logout, guest sign-in and the desktop layout.
 - Existing website checks: 17 tests / 255 assertions. Existing voting and live-board browser journeys: 2 tests / 45 assertions. Tailwind build and diff checks pass. No database migration is required.
+
+## Social link previews — 5 November 2026
+
+- Added server-rendered Open Graph and X large-image card tags: title, description, canonical URL, site name, Polish locale, and the existing community artwork with its MIME type, dimensions and alternative text. Event descriptions also populate the regular description tag. Explicit UTF-8 metadata preserves Polish characters.
+- Preview URLs use the configured site origin and omit query parameters. Home links retain the root URL; presentation/reveal links share their event's canonical URL. Login and admin pages use generic site metadata, without account details or login tokens.
+- Verified homepage, event, presentation, reveal and private-page metadata locally, including quotes/ampersands, markup escaping, blank/long descriptions and staging/production origins. Existing website suite: 17 tests / 255 assertions. RuboCop and diff checks pass. No migration is required.
