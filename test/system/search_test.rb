@@ -10,7 +10,7 @@ class SearchTest < ApplicationSystemTestCase
     @gabe = @event.options.create!(participant: author, text: "Gabe Newell pojawia się na scenie")
     15.times { |i| @event.options.create!(participant: author, text: "Pozostała propozycja #{i}") }
     Capybara.default_max_wait_time = 10
-    page.current_window.resize_to(1440, 900)
+    desktop_viewport(height: 900)
     browser_sign_in(@voter)
     visit event_path(@event)
     page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "reduce" } ])
@@ -78,7 +78,7 @@ class SearchTest < ApplicationSystemTestCase
     assert_selector "#option-#{@gabe.id}"
     assert_equal "original", page.evaluate_script("window.searchDocument")
 
-    page.current_window.resize_to(390, 844)
+    mobile_viewport
     fill_in "Szukaj propozycji", with: "wiedź"
     assert_selector ".option-card", count: 2
     assert_equal "q", page.evaluate_script("document.activeElement.id")

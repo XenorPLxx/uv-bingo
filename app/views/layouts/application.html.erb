@@ -18,8 +18,8 @@
         <div class="header-inner">
           <%= render "shared/brand" %>
           <div class="desktop-navigation"><%= render "shared/navigation" %></div>
-          <details class="mobile-navigation">
-            <summary>Menu <span class="menu-icon" aria-hidden="true"></span></summary>
+          <details class="mobile-navigation" data-controller="mobile-menu" data-action="click@window->mobile-menu#dismissOutside keydown.esc@window->mobile-menu#dismissWithEscape">
+            <summary data-mobile-menu-target="trigger">Menu <span class="menu-icon" aria-hidden="true"></span></summary>
             <%= render "shared/navigation" %>
           </details>
         </div>

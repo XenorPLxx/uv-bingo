@@ -65,6 +65,8 @@ bin/importmap audit
 
 Tests cover budget concurrency, voting boundaries, vote withdrawals and reused slots, duplicate handling, tie selection, repeated/concurrent draws, login token replay, Discord signatures, admin authorization, stale proposal revisions, staging Basic Auth, mobile layout, and updates between two browsers. Browser screenshots are written to `tmp/screenshots/`.
 
+Use `mobile_viewport` in system tests for phone layouts. It sets Chrome device metrics and asserts the actual viewport dimensions; resizing the browser window alone stops at Chrome's minimum window width. Use `desktop_viewport` to clear device emulation when returning to desktop layouts.
+
 ## Deployment
 
 See [operations](docs/operations.md). Staging: https://bingo.testing.xenor.ovh. Production: https://bingo.xenor.ovh.

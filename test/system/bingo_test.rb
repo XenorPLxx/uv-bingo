@@ -7,7 +7,7 @@ class BingoTest < ApplicationSystemTestCase
     @previous_admins = ENV["ADMIN_DISCORD_IDS"]
     ActionCable.server.config.cable = { "adapter" => "async" }
     Capybara.default_max_wait_time = 10
-    page.current_window.resize_to(1440, 1100)
+    desktop_viewport
   end
 
   teardown do
@@ -42,7 +42,7 @@ class BingoTest < ApplicationSystemTestCase
     assert_equal 5, @voter.votes.count
     assert_no_text "Każdy głos ma tę samą wagę"
     save_screenshot(Rails.root.join("tmp/screenshots/voting-desktop.png"))
-    page.current_window.resize_to(390, 844)
+    mobile_viewport
     assert_selector "h1", text: @event.title
     assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > window.innerWidth")
     save_screenshot(Rails.root.join("tmp/screenshots/voting-mobile.png"))
@@ -113,7 +113,7 @@ class BingoTest < ApplicationSystemTestCase
     assert_field "Twoja propozycja", with: "Niedokończona propozycja"
     assert_equal "original", page.evaluate_script("window.votingDocument")
     save_screenshot(Rails.root.join("tmp/screenshots/voting-in-place.png"))
-    page.current_window.resize_to(390, 844)
+    mobile_viewport
     page.execute_script("document.getElementById('option-#{options[18].id}').scrollIntoView({block: 'center', behavior: 'instant'})")
     mobile_anchor = "#option-#{options[19].id}"
     before = voting_viewport(mobile_anchor)
@@ -163,15 +163,15 @@ class BingoTest < ApplicationSystemTestCase
     assert_selector '.mark-cross[data-position="0"]'
     assert_text "Oznaczenie zapisane"
     assert_current_path presentation_event_path(@event)
-    page.current_window.resize_to(390, 844)
+    mobile_viewport
     assert_board_text_fits
     assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > window.innerWidth")
-    page.current_window.resize_to(1920, 1080)
+    desktop_viewport(width: 1920, height: 1080)
     assert_board_text_fits
     save_screenshot(Rails.root.join("tmp/screenshots/presentation-admin.png"))
     Capybara.using_session(:viewer) do
       assert_selector ".mark-cross[data-position='0']", wait: 10
-      page.current_window.resize_to(1920, 1080)
+      desktop_viewport(width: 1920, height: 1080)
       assert_board_text_fits
       save_screenshot(Rails.root.join("tmp/screenshots/presentation.png"))
     end

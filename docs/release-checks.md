@@ -141,3 +141,9 @@ These are clearly labeled test events. Production has configuration only and has
 - Added server-rendered Open Graph and X large-image card tags: title, description, canonical URL, site name, Polish locale, and the existing community artwork with its MIME type, dimensions and alternative text. Event descriptions also populate the regular description tag. Explicit UTF-8 metadata preserves Polish characters.
 - Preview URLs use the configured site origin and omit query parameters. Home links retain the root URL; presentation/reveal links share their event's canonical URL. Login and admin pages use generic site metadata, without account details or login tokens.
 - Verified homepage, event, presentation, reveal and private-page metadata locally, including quotes/ampersands, markup escaping, blank/long descriptions and staging/production origins. Existing website suite: 17 tests / 255 assertions. RuboCop and diff checks pass. No migration is required.
+
+## Mobile menu dismissal and viewport coverage — 5 November 2026
+
+- The mobile menu closes on an outside click/tap or Escape. Escape returns focus to its trigger when focus was inside the menu; an outside click retains focus on its clicked target. Menu links and logout continue working. Stimulus manages the global event listeners through its normal connection/disconnection lifecycle.
+- Replaced phone-sized window resizing in the voting, search and live-board system tests with Chrome device-metrics emulation at 390×844 and pixel ratio 2. The helper asserts the actual viewport dimensions; returning to desktop clears the override first.
+- Added browser coverage for dismissal, internal clicks, keyboard focus and navigation at 320px and 390px, plus the 760/761px mobile-to-desktop boundary. All 14 browser tests pass with 256 assertions; changed Ruby test files pass RuboCop. No migration is required.

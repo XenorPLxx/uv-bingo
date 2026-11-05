@@ -14,4 +14,14 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     click_button "Zaloguj się"
     assert_text "Zalogowano."
   end
+
+  def mobile_viewport(width: 390, height: 844)
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride", width: width, height: height, deviceScaleFactor: 2, mobile: true)
+    assert_equal [ width, height ], page.evaluate_script("[window.innerWidth, window.innerHeight]"), "The browser must use the requested phone viewport"
+  end
+
+  def desktop_viewport(width: 1440, height: 1100)
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+    page.current_window.resize_to(width, height)
+  end
 end
