@@ -35,6 +35,26 @@ class DiscordTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "missing application URL is logged and does not issue an unusable token" do
+    output = StringIO.new
+    logger = ActiveSupport::Logger.new(output)
+    Rails.logger.broadcast_to(logger)
+    with_env DISCORD_PUBLIC_KEY: @key.verify_key.to_bytes.unpack1("H*"), DISCORD_GUILD_ID: "guild-123", APP_URL: nil do
+      payload = { id: "missing-config", type: 2, guild_id: "guild-123", data: { name: "bingo" }, member: { user: { id: "voter-123" } } }
+      assert_no_difference [ "LoginToken.count", "Participant.count" ] do
+        send_interaction(payload)
+        assert_response :success
+        assert_equal 64, response.parsed_body.dig("data", "flags")
+        assert_match "chwilowo niedostępne", response.parsed_body.dig("data", "content")
+      end
+      assert_includes output.string, "APP_URL is missing"
+      send_interaction(payload.except(:id))
+      assert_response :bad_request
+    end
+  ensure
+    Rails.logger.stop_broadcasting_to(logger) if logger
+  end
+
   private
 
   def send_interaction(payload, timestamp: Time.now.to_i.to_s, signing_key: @key)

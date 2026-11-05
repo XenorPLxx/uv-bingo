@@ -30,8 +30,11 @@ export default class extends Controller {
     this.loading = true
     this.request = new AbortController()
     const timeout = setTimeout(() => this.request.abort(), 8000)
+    const url = new URL(this.urlValue, window.location.origin)
+    url.searchParams.set("revision", this.revisionValue)
+    url.searchParams.set("phase", this.phaseValue)
     try {
-      const response = await fetch(this.urlValue, { headers: { Accept: "application/json" }, cache: "no-store", signal: this.request.signal })
+      const response = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store", signal: this.request.signal })
       if (response.status === 404) { window.location.replace("/?removed=1"); return }
       if (!response.ok) throw new Error("state request failed")
       const data = await response.json()

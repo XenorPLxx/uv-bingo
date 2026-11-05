@@ -9,8 +9,14 @@ class DiscordController < ActionController::Base
         payload["guild_id"] == ENV.fetch("DISCORD_GUILD_ID", "") && payload.dig("member", "user", "id").present?
       return head :forbidden
     end
+    return head :bad_request if payload["id"].blank?
     if LoginToken.exists?(interaction_id: payload["id"])
       return private_reply("Ten link został już wysłany. Użyj /#{ENV.fetch('DISCORD_COMMAND', 'bingo')} ponownie, aby otrzymać nowy.")
+    end
+    base_url = ENV["APP_URL"].presence
+    unless base_url
+      Rails.logger.error("Discord login unavailable: APP_URL is missing from the application configuration.")
+      return private_reply("Logowanie jest chwilowo niedostępne. Administrator musi sprawdzić konfigurację aplikacji.")
     end
     user = payload.fetch("member").fetch("user")
     participant = Participant.create_or_find_by!(discord_id: user.fetch("id")) do |record|
@@ -18,7 +24,7 @@ class DiscordController < ActionController::Base
     end
     participant.update!(display_name: display_name(payload, user))
     raw = LoginToken.issue!(participant: participant, interaction_id: payload.fetch("id"))
-    url = "#{ENV.fetch('APP_URL')}/login?token=#{raw}"
+    url = "#{base_url}/login?token=#{raw}"
     private_reply("Link do logowania jest ważny przez 10 minut. Głosy są przypisane do konta Discord.",
       components: [ { type: 1, components: [ { type: 2, style: 5, label: "Otwórz TGA Bingo", url: url } ] } ])
   rescue JSON::ParserError, KeyError

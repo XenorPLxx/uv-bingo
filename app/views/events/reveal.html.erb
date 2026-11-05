@@ -2,6 +2,7 @@
 <div class="reveal-page" data-controller="reveal">
   <%= render "shared/brand" %><h1>Wynik losowania</h1><p><%= @event.title %></p>
   <div class="reveal-controls"><button class="button primary" data-action="reveal#play" data-reveal-target="button">Odsłoń wylosowaną planszę ✦</button><%= link_to "Przejdź do planszy →", event_path(@event), class: "text-link" %></div>
+  <p data-reveal-target="status" role="status" aria-live="polite"></p>
   <p class="fineprint">Losowanie zapisano <%= @event.draw.created_at.in_time_zone.strftime('%d.%m.%Y o %H:%M:%S') %>. Odtwarzanie nie zmienia wyniku.</p>
   <div class="reveal-grid" data-reveal-target="grid"><%= render "events/board", interactive: false %></div>
   <%= link_to "Pobierz zapis losowania ↓", draw_record_event_path(@event), class: "text-link" %>

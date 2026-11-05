@@ -310,4 +310,90 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     assert_select "script", text: 'alert("x")', count: 0
     assert_includes response.body, "&lt;script&gt;"
   end
+
+  test "stale disqualified options return a local validation message and refresh away" do
+    option = seed_options(@event, 1).first
+    sign_in_as(@voter)
+    get event_path(@event)
+    assert_select "#option-#{option.id}"
+    option.update!(disqualified_at: Time.current)
+    assert_no_difference "Vote.count" do
+      post event_votes_path(@event), params: { option_id: option.id }, as: :json
+      assert_response :unprocessable_entity
+      assert_match "nie jest już dostępna", response.parsed_body.fetch("error")
+      post event_votes_path(@event), params: { option_id: option.id }
+      assert_redirected_to event_path(@event, anchor: "options")
+      follow_redirect!
+      assert_select ".voting-feedback .alert", text: /nie jest już dostępna/
+      assert_select "#option-#{option.id}", 0
+    end
+  end
+
+  test "proposal cap hides only proposal submission and keeps existing votes available" do
+    20.times { |i| @event.options.create!(participant: @voter, text: "Moja propozycja #{i}") }
+    other = seed_options(@event, 1).first
+    sign_in_as(@voter)
+    get event_path(@event)
+    assert_select ".authored-option-count", text: /20\/20/
+    assert_select ".add-panel textarea", 0
+    assert_select "#option-#{other.id} button"
+    assert_no_difference [ "Option.count", "Vote.count" ] do
+      post event_options_path(@event), params: { text: "Ponad limit" }, as: :json
+      assert_response :unprocessable_entity
+      assert_match "maksymalnie 20", response.parsed_body.fetch("error")
+    end
+    post event_votes_path(@event), params: { option_id: other.id }, as: :json
+    assert_response :success
+    get state_event_path(@event), params: { refresh: "1" }
+    assert_equal false, response.parsed_body.dig("voting", "can_add")
+    assert_match "Osiągnięto limit 20", response.parsed_body.dig("voting", "add_option")
+  end
+
+  test "unchanged live board polls do not render board HTML and changed revisions do" do
+    seed_options(@event, 25)
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: @voter)
+    @event.update!(state: "live")
+    rendered = []
+    observer = ->(_name, _started, _finished, _id, payload) { rendered << payload[:identifier] }
+    ActiveSupport::Notifications.subscribed(observer, "render_partial.action_view") do
+      get state_event_path(@event), params: { presentation: "1", phase: "live", revision: @event.revision }
+    end
+    assert_response :success
+    assert_equal({ "phase" => "live", "revision" => @event.revision }, response.parsed_body)
+    assert_empty rendered
+    cell = @event.cells.first
+    BoardActions.mark!(cell: cell, admin: @voter, mark: "cross", revision: cell.revision)
+    get state_event_path(@event), params: { presentation: "1", phase: "live", revision: @event.revision - 1 }
+    assert_response :success
+    assert_match "mark-cross", response.parsed_body.fetch("html")
+    @event.update!(state: "archived")
+    get state_event_path(@event), params: { presentation: "1", phase: "live", revision: @event.revision }
+    assert_equal "archived", response.parsed_body.fetch("phase")
+    assert response.parsed_body["html"]
+  end
+
+  test "CSP allows only local assets nonce scripts and the same host websocket" do
+    get event_path(@event)
+    assert_response :success
+    header = response.headers.fetch("Content-Security-Policy")
+    nonce = Nokogiri::HTML(response.body).at_css('meta[name="csp-nonce"]')["content"]
+    assert nonce.present?
+    assert_includes header, "script-src 'self' 'nonce-#{nonce}'"
+    assert_includes header, "script-src-attr 'none'"
+    assert_includes header, "style-src 'self'"
+    assert_includes header, "connect-src 'self' ws://www.example.com"
+    assert_includes header, "object-src 'none'"
+    assert_includes header, "frame-ancestors 'none'"
+    assert_not_includes header, "unsafe-inline"
+    assert_not_includes header, "unsafe-eval"
+    assert_select "script[type=importmap][nonce=?]", nonce
+    assert_select "script[type=module][nonce=?]", nonce
+    get event_path(@event)
+    other_nonce = Nokogiri::HTML(response.body).at_css('meta[name="csp-nonce"]')["content"]
+    assert_not_equal nonce, other_nonce
+    get "/cable"
+    assert_response :not_found
+    assert_includes response.headers.fetch("Content-Security-Policy"), "connect-src 'self' ws://www.example.com"
+  end
 end

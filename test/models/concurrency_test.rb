@@ -31,6 +31,28 @@ class ConcurrencyTest < ActiveSupport::TestCase
     assert_equal [ 1, 2, 3, 4, 5 ], voter.votes.order(:slot).pluck(:slot)
   end
 
+  test "concurrent proposal submissions cannot exceed the twenty proposal cap" do
+    event = create_event
+    voter = create_participant
+    19.times { |i| event.options.create!(participant: voter, text: "Wcześniejsza propozycja #{i}") }
+    gate = Queue.new
+    threads = 2.times.map do |i|
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          gate.pop
+          Voting.cast!(event: Event.find(event.id), participant: Participant.find(voter.id), text: "Równoczesna propozycja #{i}")
+          :accepted
+        rescue Voting::Invalid
+          :rejected
+        end
+      end
+    end
+    2.times { gate << true }
+    assert_equal [ :accepted, :rejected ], threads.map(&:value).sort
+    assert_equal 20, event.options.where(participant: voter).count
+    assert_equal 1, voter.votes.where(event: event).count
+  end
+
   test "merge and a simultaneous cached vote cannot double count a participant" do
     event = create_event
     admin = create_participant

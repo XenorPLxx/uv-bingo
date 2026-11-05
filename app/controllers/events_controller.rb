@@ -32,17 +32,18 @@ class EventsController < ApplicationController
   def state
     response.headers["Cache-Control"] = "no-store"
     data = { phase: @event.phase, revision: @event.revision }
-    if @event.draw
+    changed = params[:refresh] == "1" || params[:revision] != @event.revision.to_s || params[:phase] != @event.phase
+    if @event.draw && changed
       @presentation = params[:presentation] == "1"
       data[:html] = render_to_string(partial: "events/board", formats: [ :html ])
-    elsif params[:refresh] == "1" || params[:revision] != @event.revision.to_s || params[:phase] != @event.phase
+    elsif !@event.draw && changed
       prepare_voting
       data[:voting] = {
         options: render_to_string(partial: "events/voting_options", formats: [ :html ]),
         ballot: render_to_string(partial: "events/ballot", formats: [ :html ]),
         add_option: render_to_string(partial: "events/add_option", formats: [ :html ]),
         schedule: render_to_string(partial: "events/voting_schedule", formats: [ :html ]),
-        can_add: @event.voting_open? && current_participant.present? && @remaining.positive?,
+        can_add: @can_add_option,
         option_count: @event.options.eligible.count
       }
     end
@@ -69,6 +70,8 @@ class EventsController < ApplicationController
     @counts = @event.votes.group(:option_id).count
     @options = @options.sort_by { |option| [ -@counts.fetch(option.id, 0), option.created_at, option.id ] }
     @remaining = current_participant&.votes_remaining(@event)
+    @authored_option_count = current_participant ? @event.options.where(participant: current_participant).count : 0
+    @can_add_option = @event.voting_open? && current_participant.present? && @remaining.positive? && @authored_option_count < Option::PER_PARTICIPANT_LIMIT
     @my_votes = current_participant&.votes&.where(event: @event)&.includes(:option)&.order(:slot)
     @votes_by_option = @my_votes&.index_by(&:option_id) || {}
   end

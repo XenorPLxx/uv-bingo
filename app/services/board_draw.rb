@@ -19,8 +19,7 @@ class BoardDraw
       return event.draw if event.draw
       raise Voting::Invalid, "Poczekaj na koniec głosowania." if Time.current < event.closes_at || event.state != "collecting"
       counts = event.votes.group(:option_id).count
-      snapshot = event.options.eligible.order(:id).map { |option| { "id" => option.id, "text" => option.text, "votes" => counts.fetch(option.id, 0) } }
-      snapshot.select! { |item| item["votes"] > 0 }
+      snapshot = event.options.eligible.with_votes.order(:id).map { |option| { "id" => option.id, "text" => option.text, "votes" => counts.fetch(option.id, 0) } }
       raise Voting::Invalid, "Potrzeba co najmniej 25 propozycji z głosami." if snapshot.size < 25
       seed = SecureRandom.hex(32)
       result = arrange(snapshot, seed)

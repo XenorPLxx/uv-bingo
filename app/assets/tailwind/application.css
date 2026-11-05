@@ -207,7 +207,6 @@
   .reveal-page>p { color: #8992aa; font-size: 16px; }
   .reveal-controls { display: flex; justify-content: center; align-items: center; gap: 25px; margin: 20px 0; }
   .reveal-grid { margin: 30px 0; overflow-x: auto; }
-  .reveal-grid .bingo-cell { transition: transform .45s ease, opacity .45s ease; }
   .reveal-grid:not(.revealed) .bingo-cell { opacity: .08; transform: rotateY(90deg); }
   .reveal-grid .cell-text { font-size: 16px; }
   .admin-heading { display: flex; justify-content: space-between; align-items: center; margin: 40px 0 28px; gap: 20px; }

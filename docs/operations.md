@@ -28,10 +28,10 @@ The entrypoint runs `db:prepare` before Rails starts; do not run an additional m
 Use the event links above the hero/board to switch between voting and live events. Multiple voting windows can overlap; each participant has a separate five-vote allowance in each event.
 
 1. `/bingo` in the configured test channel, open the private link, enter staging HTTP credentials, confirm login.
-2. Add an option and vote. Each action uses one of five active slots. Withdraw a vote to free a slot; its proposal remains available. Choices freeze when voting closes.
+2. Add an option and vote. Each action uses one of five active slots. Withdraw a vote to free a slot; its proposal remains available. Each participant can create at most 20 proposals per event, including withdrawn, excluded and merged proposals. Reaching that cap still allows voting on existing proposals. Choices freeze when voting closes.
 3. To combine duplicates, open the event in `/admin`, expand **Połącz propozycje** under **Propozycje i wyniki**, choose the source and retained proposal, and enter a reason. The retained wording stays; double voters get one slot back. Restore excluded proposals before merging them. The source remains in the moderation history.
 4. Open `/admin`; choose the rehearsal event and move its closing date into the past (after its opening date).
-5. Confirm the draw. Record the reveal screen; replay displays the saved result.
+5. Confirm the draw once voting is closed and at least 25 eligible proposals have votes; the button shows that count and stays disabled until both conditions hold. Record the reveal screen. Replay restarts the animation of the saved result, including during an earlier replay; reduced-motion preferences show the result immediately with an explanation.
 6. Start the live event from admin. Open presentation mode in another browser.
 7. Click the `?` / `X` counters on the left to suggest a mark. Admins use the colored buttons on the right for official decisions. Both work in presentation mode; clicking a selected mark again clears it. Verify the viewer updates and old proposals stop counting.
 8. Archive the event. Create a new rehearsal event for another run; never reroll the same event.
@@ -63,7 +63,9 @@ bin/check-staging-health
 
 Rollback changes the app image, not the database. Future schema migrations must remain compatible with the previous app version during a rolling deployment. Test the rollback path when there is a prior working version; a brand-new first release has none.
 
-Clients resync on reconnect, when the tab becomes visible, and every 15 seconds. Failed broadcasts don't undo committed marks. A visible status explains lost connectivity; no write is queued offline. Public streams carry only change notifications; personalized HTML is fetched through normal authorized sessions. Opening a cell dialog temporarily delays resync to preserve the user's interaction, and server-side revision checks reject stale writes.
+Clients resync on reconnect, when the tab becomes visible, and every 15 seconds. Polls send the current phase and revision; unchanged boards return only those values without rendering HTML. Responses remain uncached. Failed broadcasts don't undo committed marks. A visible status explains lost connectivity; no write is queued offline. Public streams carry only change notifications; personalized HTML is fetched through normal authorized sessions. Voting refreshes preserve list position, sidebar scroll and unfinished proposal text; server-side revision checks reject stale board writes.
+
+The content security policy permits local assets, nonce-authorized importmap scripts and the current host's WebSocket endpoint. It blocks inline script attributes, plugins and embedding in other sites. Policy configuration follows the [Rails security guide](https://guides.rubyonrails.org/security.html#content-security-policy-header). A missing Discord `APP_URL` logs a configuration error and returns a private unavailable message before issuing a login token.
 
 ## Production preparation
 

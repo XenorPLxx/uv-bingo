@@ -3,23 +3,23 @@
 <section class="panel admin-actions"><h2>Sterowanie wydarzeniem</h2>
   <% if @event.draw %><p>Losowanie zapisano. Ponowne odtworzenie pokaże ten sam układ planszy.</p><div class="button-row"><%= link_to "Odtwórz odsłonięcie ✦", reveal_event_path(@event), class: "button secondary" %><%= link_to "Zapis losowania ↓", draw_record_event_path(@event), class: "button secondary" %>
     <% if @event.state == 'collecting' %><%= button_to "Rozpocznij transmisję", transition_admin_event_path(@event), params: { state: 'live' }, class: "button primary", form: { data: { turbo_confirm: 'Uruchomić propozycje i oznaczanie pól?' } } %><% elsif @event.state == 'live' %><%= button_to "Zakończ i zarchiwizuj", transition_admin_event_path(@event), params: { state: 'archived' }, class: "button danger", form: { data: { turbo_confirm: 'Zakończyć wydarzenie? Plansza pozostanie dostępna tylko do odczytu.' } } %><% end %></div>
-  <% else %><p>Losowanie wybierze 25 propozycji z największą liczbą głosów i rozstrzygnie remisy. Uruchom nagrywanie ekranu przed rozpoczęciem losowania.</p><%= button_to "Losuj planszę ✦", draw_admin_event_path(@event), class: "button primary", disabled: @event.phase != 'closed' || @event.options.eligible.count < 25, form: { data: { turbo_confirm: 'Wylosować ostateczną planszę? Tego działania nie można powtórzyć.' } } %><p class="fineprint">Wymagane: zamknięte głosowanie i co najmniej 25 propozycji z głosami.</p><% end %>
+  <% else %><p>Losowanie wybierze 25 propozycji z największą liczbą głosów i rozstrzygnie remisy. Uruchom nagrywanie ekranu przed rozpoczęciem losowania.</p><%= button_to "Losuj planszę ✦", draw_admin_event_path(@event), class: "button primary", disabled: @event.phase != 'closed' || @voted_option_count < 25, form: { data: { turbo_confirm: 'Wylosować ostateczną planszę? Tego działania nie można powtórzyć.' } } %><p class="fineprint">Propozycje z głosami: <strong><%= @voted_option_count %></strong>. Wymagane: zamknięte głosowanie i co najmniej 25 takich propozycji.</p><% end %>
 </section>
-<% unless @event.draw %><details class="panel settings-panel"><summary>Ustawienia i terminy głosowania</summary><%= render "form", event: @event %></details><% end %>
+<% unless @event.draw %><details class="panel settings-panel" <%= 'open' if @settings_open %>><summary>Ustawienia i terminy głosowania</summary><%= render "form", event: @settings_event || @event %></details><% end %>
 <section class="panel" id="moderation">
   <h2>Propozycje i wyniki</h2>
   <p class="muted">Wykluczenie propozycji nie usuwa głosów. Uczestnik może je cofnąć, dopóki głosowanie trwa. Zmiany są zapisywane w historii.</p>
   <% if !@event.draw && @event.state == 'collecting' && @merge_options.size >= 2 %>
-    <details class="merge-panel">
+    <details class="merge-panel" <%= 'open' if @merge_input %>>
       <summary>Połącz propozycje</summary>
       <p class="muted">Głosy trafią do propozycji, która pozostanie na liście. Osoba głosująca na obie zachowa jeden głos, a drugi wróci do jej limitu. Podczas głosowania będzie można wykorzystać go ponownie.</p>
       <% choices = @merge_options.map { |option| ["#{option.text} · głosy: #{@counts.fetch(option.id, 0)}", option.id] } %>
       <%= form_with url: merge_admin_event_path(@event), class: "admin-form merge-form", data: { turbo_confirm: "Połączyć wybrane propozycje? Głosy zostaną przeniesione, a podwójne głosy zwrócone. Tej operacji nie można cofnąć." } do |form| %>
         <div class="form-columns">
-          <div><%= form.label :source_id, "Propozycja do połączenia" %><%= form.select :source_id, choices, { include_blank: "Wybierz propozycję" }, required: true %></div>
-          <div><%= form.label :target_id, "Propozycja, która pozostanie" %><%= form.select :target_id, choices, { include_blank: "Wybierz propozycję" }, required: true %></div>
+          <div><%= form.label :source_id, "Propozycja do połączenia" %><%= form.select :source_id, choices, { include_blank: "Wybierz propozycję", selected: @merge_input&.[](:source_id) }, required: true %></div>
+          <div><%= form.label :target_id, "Propozycja, która pozostanie" %><%= form.select :target_id, choices, { include_blank: "Wybierz propozycję", selected: @merge_input&.[](:target_id) }, required: true %></div>
         </div>
-        <div><%= form.label :reason, "Powód połączenia" %><%= form.text_field :reason, required: true, minlength: 3, maxlength: 200 %></div>
+        <div><%= form.label :reason, "Powód połączenia" %><%= form.text_field :reason, value: @merge_input&.[](:reason), required: true, minlength: 3, maxlength: 200 %></div>
         <%= form.submit "Połącz propozycje", class: "button primary" %>
       <% end %>
     </details>
@@ -33,13 +33,14 @@
           <% if option.merged_into %><p class="merge-destination">Połączona z: <%= link_to option.merged_into.text, "#moderation-option-#{option.merged_into_id}" %></p><% end %>
         </div>
         <% unless @event.draw || option.merged_into_id %>
-          <details>
+          <% input = @moderation_input&.[](:option_id).to_s == option.id.to_s ? @moderation_input : {} %>
+          <details <%= 'open' if input.present? %>>
             <summary>Moderuj</summary>
             <%= form_with url: moderate_admin_event_path(@event), class: "moderation-form" do |form| %>
               <%= form.hidden_field :option_id, value: option.id %>
-              <%= form.label :text, "Treść (tylko korekta literówki)" %><%= form.text_field :text, value: option.text, maxlength: 100 %>
-              <%= form.label :reason, "Powód zmiany" %><%= form.text_field :reason, required: true, minlength: 3, maxlength: 200 %>
-              <%= form.select :operation, [['Popraw literówkę', 'correct'], [option.disqualified_at ? 'Przywróć' : 'Wyklucz', option.disqualified_at ? 'restore' : 'disqualify']] %>
+              <%= form.label :text, "Treść (tylko korekta literówki)" %><%= form.text_field :text, value: input.fetch(:text, option.text), maxlength: 100 %>
+              <%= form.label :reason, "Powód zmiany" %><%= form.text_field :reason, value: input[:reason], required: true, minlength: 3, maxlength: 200 %>
+              <%= form.select :operation, [['Popraw literówkę', 'correct'], [option.disqualified_at ? 'Przywróć' : 'Wyklucz', option.disqualified_at ? 'restore' : 'disqualify']], selected: input[:operation] %>
               <%= form.submit "Zapisz zmianę", class: "button secondary" %>
             <% end %>
           </details>

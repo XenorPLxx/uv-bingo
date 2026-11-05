@@ -21,10 +21,7 @@ module Admin
     end
 
     def show
-      @counts = @event.votes.group(:option_id).count
-      @options = @event.options.includes(:participant, :merged_into).sort_by { |option| [ -@counts.fetch(option.id, 0), option.id ] }
-      @merge_options = @options.reject { |option| option.disqualified_at || option.merged_into_id }
-      @audits = @event.audit_entries.includes(:participant).order(created_at: :desc).limit(100)
+      prepare_show
     end
 
     def deletion
@@ -107,6 +104,38 @@ module Admin
     end
 
     private
+
+    def invalid_action(error)
+      return super if request.format.json? || action_name == "mark"
+
+      flash.now[:alert] = error.message
+      case action_name
+      when "create"
+        render :new, status: :unprocessable_entity
+      when "update"
+        @settings_event = @event
+        @settings_open = true
+        @event = Event.find(@event.id)
+        prepare_show
+        render :show, status: :unprocessable_entity
+      when "moderate", "merge"
+        @moderation_input = params.permit(:option_id, :text, :reason, :operation) if action_name == "moderate"
+        @merge_input = params.permit(:source_id, :target_id, :reason) if action_name == "merge"
+        @event.reload
+        prepare_show
+        render :show, status: :unprocessable_entity
+      else
+        redirect_to admin_event_path(@event), alert: error.message, status: :see_other
+      end
+    end
+
+    def prepare_show
+      @counts = @event.votes.group(:option_id).count
+      @options = @event.options.includes(:participant, :merged_into).sort_by { |option| [ -@counts.fetch(option.id, 0), option.id ] }
+      @merge_options = @options.reject { |option| option.disqualified_at || option.merged_into_id }
+      @voted_option_count = @event.options.eligible.with_votes.count
+      @audits = @event.audit_entries.includes(:participant).order(created_at: :desc).limit(100)
+    end
 
     def prepare_deletion
       @deletion_counts = {

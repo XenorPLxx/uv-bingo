@@ -1,6 +1,7 @@
 <h2>Dodaj propozycję</h2>
 <p class="muted">Nowa propozycja otrzyma Twój głos. Cofnięcie go nie usunie propozycji.</p>
-<% if @event.voting_open? && current_participant && @remaining.positive? %>
+<% if current_participant %><p class="fineprint authored-option-count">Dodane propozycje: <%= @authored_option_count %>/<%= Option::PER_PARTICIPANT_LIMIT %> na to wydarzenie.</p><% end %>
+<% if @can_add_option %>
   <%= form_with url: event_options_path(@event), data: { controller: "option-preview", action: "submit->event-status#submit", voting_kind: "proposal" } do |form| %>
     <%= form.hidden_field :q, value: @query %>
     <%= form.label :text, "Twoja propozycja", class: "sr-only" %><%= form.text_area :text, maxlength: 100, required: true, rows: 3, placeholder: "Np. nowy zwiastun Wiedźmina IV", data: { action: "input->option-preview#update", option_preview_target: "input" } %>
@@ -9,5 +10,13 @@
     <%= form.submit "Dodaj propozycję +1", class: "button secondary wide", id: "new-option-submit" %>
   <% end %>
 <% else %>
-  <p class="fineprint"><%= !current_participant ? 'Zaloguj się, aby dodać propozycję.' : @remaining == 0 && @event.voting_open? ? 'Wykorzystano 5 głosów. Cofnij jeden, aby dodać propozycję.' : 'Dodawanie propozycji jest dostępne w czasie głosowania.' %></p>
+  <p class="fineprint"><%= if !current_participant
+    'Zaloguj się, aby dodać propozycję.'
+  elsif @authored_option_count >= Option::PER_PARTICIPANT_LIMIT
+    'Osiągnięto limit 20 propozycji. Nadal możesz głosować na istniejące propozycje.'
+  elsif @remaining == 0 && @event.voting_open?
+    'Wykorzystano 5 głosów. Cofnij jeden, aby dodać propozycję.'
+  else
+    'Dodawanie propozycji jest dostępne w czasie głosowania.'
+  end %></p>
 <% end %>

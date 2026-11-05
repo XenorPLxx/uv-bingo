@@ -43,10 +43,33 @@ class VotingTest < ActiveSupport::TestCase
   test "disqualified and foreign event options are unavailable" do
     option = Voting.cast!(event: @event, participant: create_participant, text: "Wykluczona").option
     option.update!(disqualified_at: Time.current)
-    assert_raises(ActiveRecord::RecordNotFound) { Voting.cast!(event: @event, participant: @voter, option_id: option.id) }
+    assert_raises(Voting::Invalid) { Voting.cast!(event: @event, participant: @voter, option_id: option.id) }
     other = create_event
     foreign = Voting.cast!(event: other, participant: create_participant, text: "Inne wydarzenie").option
-    assert_raises(ActiveRecord::RecordNotFound) { Voting.cast!(event: @event, participant: @voter, option_id: foreign.id) }
+    assert_raises(Voting::Invalid) { Voting.cast!(event: @event, participant: @voter, option_id: foreign.id) }
+  end
+
+  test "twenty authored proposals is a lifetime event cap independent of vote withdrawals or moderation" do
+    options = 20.times.map do |i|
+      vote = Voting.cast!(event: @event, participant: @voter, text: "Propozycja #{i}")
+      Voting.withdraw!(event: @event, participant: @voter, vote_id: vote.id)
+      vote.option
+    end
+    assert_equal 5, @voter.votes_remaining(@event)
+    options.first.update!(disqualified_at: Time.current)
+    OptionMerge.call(event: @event, admin: @voter, source_id: options[1].id, target_id: options[2].id, reason: "Duplikat")
+    previous_revision = @event.reload.revision
+    assert_no_difference [ "Option.count", "Vote.count" ] do
+      error = assert_raises(Voting::Invalid) { Voting.cast!(event: @event, participant: @voter, text: "Propozycja 21") }
+      assert_match "maksymalnie 20", error.message
+    end
+    assert_equal previous_revision, @event.reload.revision
+    other_option = seed_options(@event, 1).first
+    Voting.cast!(event: @event, participant: @voter, option_id: other_option.id)
+    assert_equal 4, @voter.votes_remaining(@event)
+    other_event = create_event
+    Voting.cast!(event: other_event, participant: @voter, text: "Nowe wydarzenie, nowy limit")
+    assert_equal 4, @voter.votes_remaining(other_event)
   end
 
   test "votes cannot be edited or destroyed outside the voting service" do

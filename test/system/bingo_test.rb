@@ -205,6 +205,68 @@ class BingoTest < ApplicationSystemTestCase
     end
   end
 
+  test "saved draw reveal really restarts without changing its result and supports reduced motion" do
+    seed_options(@event, 25)
+    @event.update!(closes_at: 1.second.ago)
+    draw = BoardDraw.call(event: @event, admin: @voter)
+    record = draw.attributes
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "no-preference" } ])
+    visit reveal_event_path(@event)
+    page.execute_script("window.cspViolations = []; document.addEventListener('securitypolicyviolation', event => window.cspViolations.push(event.violatedDirective))")
+    click_button "Odsłoń wylosowaną planszę ✦"
+    assert_selector "[data-reveal-target=status]", text: "Odsłanianie planszy…"
+    assert_equal 25, page.evaluate_script("document.querySelector('.reveal-grid').getAnimations({subtree:true}).length")
+    assert_operator page.evaluate_script("parseFloat(getComputedStyle(document.querySelector('.bingo-cell:last-child')).opacity)"), :<, 0.1
+    assert_selector "[data-reveal-target=status]", exact_text: "Plansza odsłonięta."
+    click_button "Odtwórz ten sam wynik ponownie ↻"
+    assert_selector "[data-reveal-target=status]", text: "Odsłanianie planszy…"
+    assert_equal 25, page.evaluate_script("document.querySelector('.reveal-grid').getAnimations({subtree:true}).length")
+    assert_operator page.evaluate_script("parseFloat(getComputedStyle(document.querySelector('.bingo-cell:last-child')).opacity)"), :<, 0.1
+    click_button "Odtwórz ten sam wynik ponownie ↻"
+    assert_equal 25, page.evaluate_script("document.querySelector('.reveal-grid').getAnimations({subtree:true}).length")
+    assert_selector "[data-reveal-target=status]", exact_text: "Plansza odsłonięta."
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "reduce" } ])
+    click_button "Odtwórz ten sam wynik ponownie ↻"
+    assert_selector "[data-reveal-target=status]", text: "Animacje są wyłączone"
+    assert_equal 0, page.evaluate_script("document.querySelector('.reveal-grid').getAnimations({subtree:true}).length")
+    assert_equal true, page.evaluate_script("Array.from(document.querySelectorAll('.bingo-cell')).every(cell => getComputedStyle(cell).opacity === '1')")
+    assert_equal record, draw.reload.attributes
+    assert_equal draw.result, @event.cells.order(:position).pluck(:option_id)
+    assert_equal 1, @event.audit_entries.where(action: "draw").count
+    click_link "Przejdź do planszy →"
+    assert_selector ".bingo-cell", count: 25
+    assert_empty page.evaluate_script("window.cspViolations")
+  end
+
+  test "twentieth proposal hides submission but sidebar withdrawal and stale option feedback still work" do
+    19.times { |i| @event.options.create!(participant: @voter, text: "Moja wcześniejsza propozycja #{i}") }
+    other, stale = seed_options(@event, 2)
+    browser_sign_in(@voter)
+    page.execute_script("window.votingDocument = 'original'")
+    assert_selector ".authored-option-count", text: "19/20"
+    fill_in "Twoja propozycja", with: "Moja dwudziesta propozycja"
+    click_button "Dodaj propozycję +1"
+    assert_selector ".voting-feedback", text: "Propozycja dodana"
+    assert_selector ".authored-option-count", text: "20/20"
+    assert_no_field "Twoja propozycja"
+    within("#option-#{other.id}") { click_button "Głosuję +1" }
+    assert_selector ".ballot-count", text: "2/5"
+    own_option = @event.options.find_by!(text: "Moja dwudziesta propozycja")
+    find("#ballot-#{own_option.id}-remove").click
+    assert_selector ".voting-feedback", text: "Głos cofnięty"
+    assert_selector ".ballot-count", text: "1/5"
+    assert_selector ".authored-option-count", text: "20/20"
+    assert_no_field "Twoja propozycja"
+    assert Option.exists?(own_option.id)
+    stale.update!(disqualified_at: Time.current)
+    @event.increment!(:revision)
+    within("#option-#{stale.id}") { click_button "Głosuję +1" }
+    assert_selector ".voting-feedback .alert", text: "nie jest już dostępna"
+    assert_no_selector "#option-#{stale.id}"
+    assert_equal 1, @voter.votes.count
+    assert_equal "original", page.evaluate_script("window.votingDocument")
+  end
+
   private
 
   def voting_viewport(selector)

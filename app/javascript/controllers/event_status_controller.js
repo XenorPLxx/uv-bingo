@@ -110,6 +110,9 @@ export default class extends Controller {
           restored.value = this.draft || ""
           queueMicrotask(() => restored.dispatchEvent(new Event("input", { bubbles: true })))
         }
+      } else {
+        const counter = document.createRange().createContextualFragment(voting.add_option).querySelector(".authored-option-count")
+        if (counter) this.addOptionTarget.querySelector(".authored-option-count")?.replaceWith(counter)
       }
     }
     if (clearDraft && input?.isConnected) {
