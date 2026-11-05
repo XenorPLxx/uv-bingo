@@ -35,7 +35,10 @@ class BingoTest < ApplicationSystemTestCase
 
   test "admin marks update a second browser and presentation is free of controls" do
     ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
-    seed_options(@event, 25)
+    seed_options(@event, 25).each_with_index do |option, index|
+      option.update!(text: DemoEvent::IDEAS.fetch(index))
+    end
+    @event.options.first.update!(text: "Bardzo długa zapowiedź nowej gry z rozbudowanym zwiastunem, wieloma bohaterami i premierą w przyszłości".first(100))
     @event.update!(closes_at: 1.second.ago)
     BoardDraw.call(event: @event, admin: @voter)
     @event.update!(state: "live")
@@ -54,6 +57,10 @@ class BingoTest < ApplicationSystemTestCase
     Capybara.using_session(:viewer) do
       assert_selector ".mark-cross[data-position='0']", wait: 10
       page.current_window.resize_to(1920, 1080)
+      fits = Selenium::WebDriver::Wait.new(timeout: 5).until do
+        page.evaluate_script("Array.from(document.querySelectorAll('.cell-text span')).every(text => text.offsetHeight <= text.parentElement.clientHeight - 8)")
+      end
+      assert fits, "Full option text must fit without overlapping proposal counts"
       save_screenshot(Rails.root.join("tmp/screenshots/presentation.png"))
     end
   end
