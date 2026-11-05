@@ -77,10 +77,6 @@
   .voting-feedback .flash { margin: 0 0 20px; }
   .voting-shell[aria-busy=true] .vote-button, .voting-shell[aria-busy=true] .ballot-remove, .voting-shell[aria-busy=true] #new-option-submit { pointer-events: none; opacity: .5; }
   .voting-sidebar { position: sticky; top: 24px; align-self: start; max-height: calc(100svh - 48px); overflow-y: auto; scrollbar-width: thin; scrollbar-gutter: stable; padding-right: 4px; }
-  .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-  .section-title h2 { font-size: 25px; font-weight: 750; letter-spacing: -.9px; margin-top: 8px; }
-  .count-badge { display: inline-flex; vertical-align: middle; justify-content: center; align-items: center; width: 26px; height: 26px; border-radius: 7px; font-size: 14px; margin-left: 12px; background: #ffffff09; color: #afb5c7; letter-spacing: 0; }
-  .section-description { font-size: 16px; color: #a2aac0; margin-bottom: 20px; line-height: 1.6; }
   .search-form { display: flex; align-items: center; gap: 12px; border: 1px solid #ffffff13; border-radius: 10px; padding: 0 12px 0 17px; margin-bottom: 20px; background: #ffffff03; }
   .search-form>span { font-size: 25px; color: #929ab0; }
   .search-form input[type=search] { border: 0; background: transparent; padding: 15px 0; font-size: 14px; }
@@ -284,7 +280,6 @@
   .event-strip .tag { font-size: 7px; }
   .voting-layout { display: flex; flex-direction: column; gap: 25px; }
   .voting-sidebar { display: grid; grid-template-columns: 1fr; position: static; top: auto; align-self: stretch; max-height: none; overflow: visible; scrollbar-gutter: auto; padding-right: 0; }
-  .section-title h2 { font-size: 22px; }
   .option-card { grid-template-columns: 2ch minmax(0,1fr) auto; gap: 8px; padding: 10px 12px; }
   .option-count { font-size: 16px; }
   .button.vote-button { min-height: 44px; }

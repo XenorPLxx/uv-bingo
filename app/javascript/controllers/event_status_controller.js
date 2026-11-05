@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { Turbo } from "@hotwired/turbo-rails"
 
 export default class extends Controller {
-  static targets = ["options", "ballot", "addOption", "sidebar", "feedback", "optionCount", "schedule"]
+  static targets = ["options", "ballot", "addOption", "sidebar", "feedback", "schedule"]
   static values = { url: String, phase: String, revision: Number }
 
   connect() {
@@ -101,7 +101,6 @@ export default class extends Controller {
       this.optionsTarget.innerHTML = voting.options
       this.ballotTarget.innerHTML = voting.ballot
       this.scheduleTarget.innerHTML = voting.schedule
-      this.optionCountTarget.textContent = voting.option_count
       // Keep the existing form and its draft/preview while it remains available.
       if (!voting.can_add || !input) {
         this.addOptionTarget.innerHTML = voting.add_option

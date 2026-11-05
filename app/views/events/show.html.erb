@@ -8,17 +8,15 @@
     <div class="hero-copy">
       <div class="eyebrow"><span class="tiny-star">✦</span> UV O GRACH × THE GAME AWARDS</div>
       <h1><%= @event.title %></h1>
-      <p>Wybierz propozycje, które mają trafić na planszę bingo The Game Awards.</p>
+      <% if @event.description.present? %><p><%= @event.description %></p><% end %>
       <div class="hero-actions"><a href="#options" class="button primary">Zobacz propozycje <span aria-hidden="true">↗</span></a></div>
     </div>
   </section>
   <div class="voting-shell" data-controller="event-status" data-event-status-url-value="<%= state_event_path(@event, q: @query.presence) %>" data-event-status-phase-value="<%= @event.phase %>" data-event-status-revision-value="<%= @event.revision %>">
     <div data-event-status-target="schedule"><%= render "events/voting_schedule" %></div>
     <div class="voting-layout" id="options">
-      <section class="options-section">
+      <section class="options-section" aria-label="Propozycje do głosowania">
         <div class="voting-feedback" data-event-status-target="feedback" role="status" aria-live="polite" aria-atomic="true"><% %w[voting_notice voting_alert].each do |type| %><% if flash[type] %><div class="flash <%= type == 'voting_alert' ? 'alert' : 'notice' %>"><%= flash[type] %></div><% end %><% end %></div>
-        <div class="section-title"><div><h2>Propozycje<span class="count-badge" data-event-status-target="optionCount"><%= @event.options.eligible.count %></span></h2></div></div>
-        <% if @event.description.present? %><p class="section-description"><%= @event.description %></p><% end %>
         <%= form_with url: event_path(@event), method: :get, class: "search-form" do |form| %>
           <%= form.label :q, "Szukaj propozycji", class: "sr-only" %><span aria-hidden="true">⌕</span><%= form.search_field :q, value: @query, placeholder: "Szukaj propozycji…", maxlength: 100 %><%= form.submit "Szukaj", class: "search-button" %>
         <% end %>
