@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+set -a
+source .envrc.production
+set +a
+bundle exec ruby script/check_production.rb

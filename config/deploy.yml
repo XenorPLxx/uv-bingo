@@ -34,10 +34,10 @@ env:
     DB_HOST: uv-bingo-db
     POSTGRES_USER: uv_bingo
     DISCORD_COMMAND: bingo
-    DISCORD_APPLICATION_ID: <%= ENV.fetch("DISCORD_APPLICATION_ID", "") %>
-    DISCORD_PUBLIC_KEY: <%= ENV.fetch("DISCORD_PUBLIC_KEY", "") %>
-    DISCORD_GUILD_ID: <%= ENV.fetch("DISCORD_GUILD_ID", "") %>
-    DISCORD_CHANNEL_ID: <%= ENV.fetch("DISCORD_CHANNEL_ID", "") %>
+    DISCORD_APPLICATION_ID: "<%= ENV.fetch("DISCORD_APPLICATION_ID", "") %>"
+    DISCORD_PUBLIC_KEY: "<%= ENV.fetch("DISCORD_PUBLIC_KEY", "") %>"
+    DISCORD_GUILD_ID: "<%= ENV.fetch("DISCORD_GUILD_ID", "") %>"
+    DISCORD_CHANNEL_ID: "<%= ENV.fetch("DISCORD_CHANNEL_ID", "") %>"
   secret:
     - SECRET_KEY_BASE
     - POSTGRES_PASSWORD

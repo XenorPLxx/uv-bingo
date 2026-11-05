@@ -20,7 +20,7 @@ bin/rails db:prepare db:seed
 bin/dev
 ```
 
-Open http://localhost:3100. Development/staging seeds create a clearly labeled rehearsal event with 30 example options and six synthetic voters. They never populate production and are idempotent; real events are created in `/admin`.
+Open http://localhost:3100. Development/staging seeds create a clearly labeled rehearsal event with 30 example options and six synthetic voters. They never populate production automatically and are idempotent; real events are created in `/admin`. The production community trial is prepared explicitly with `script/prepare_trial.rb`.
 
 For local manual testing, create a participant and a single-use token through `bin/rails console`, then open `/login?token=TOKEN`. Use a Discord ID in `ADMIN_DISCORD_IDS` for admin access. There is no development bypass endpoint in the app.
 
@@ -67,13 +67,14 @@ Tests cover budget concurrency, voting boundaries, vote withdrawals and reused s
 
 ## Deployment
 
-See [operations](docs/operations.md). Staging: https://bing.testing.xenor.ovh. Planned production: https://bing.xenor.ovh.
+See [operations](docs/operations.md). Staging: https://bing.testing.xenor.ovh. Production: https://bingo.xenor.ovh.
 
 ```sh
 bin/kamal-staging accessory boot db  # first deployment only
 bin/deploy-staging-safe
+bin/deploy-production-safe
 ```
 
 Staging requires HTTP Basic Auth for pages, assets and WebSockets. The only exceptions are `GET/HEAD /up` and `POST /discord/interactions`; the latter independently requires Discord's valid signature and a fresh timestamp. Production has no staging Basic Auth, but participant/admin authorization still applies.
 
-The first release deploys staging only. Production requires its own Discord application, secrets, DNS and explicit deployment.
+Production has independent database/session secrets. The existing Discord app is shared: its production endpoint handles community commands locally and relays signed commands from the private test server to staging. See [Discord setup](docs/discord.md) for installation and registration.

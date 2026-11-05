@@ -5,12 +5,14 @@ servers:
     hosts:
       - 5.135.141.150
 proxy:
-  host: bing.xenor.ovh
+  host: bingo.xenor.ovh
 env:
   clear:
     RAILS_ENV: production
-    APP_HOST: bing.xenor.ovh
-    APP_URL: https://bing.xenor.ovh
+    APP_HOST: bingo.xenor.ovh
+    APP_URL: https://bingo.xenor.ovh
+    DISCORD_STAGING_GUILD_ID: "725336022657007788"
+    DISCORD_STAGING_INTERACTIONS_URL: https://bing.testing.xenor.ovh/discord/interactions
 accessories:
   db:
     image: postgres:17-alpine

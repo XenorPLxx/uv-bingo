@@ -8,3 +8,5 @@ export DISCORD_GUILD_ID=
 export DISCORD_CHANNEL_ID=
 export DISCORD_BOT_TOKEN=
 export ADMIN_DISCORD_IDS=
+export APP_HOST=bingo.xenor.ovh
+export APP_URL=https://bingo.xenor.ovh

@@ -3,7 +3,7 @@
 ## Hosts and isolation
 
 - Staging: `xenor@192.168.2.73`, `bing.testing.xenor.ovh`. The previous `uv-bingo.testing.xenor.ovh` address remains a compatibility alias with the same HTTP authentication.
-- Production configuration: `ubuntu@5.135.141.150`, `bing.xenor.ovh`.
+- Production: `ubuntu@5.135.141.150`, `bingo.xenor.ovh`.
 - Registry image: `gitea.xenor.ovh/xenor/uv-bingo`.
 - Accessory: `uv-bingo-db`, PostgreSQL 17, its own persistent data directory and credentials.
 - Databases: `uv_bingo_staging` / `uv_bingo_production`.
@@ -52,7 +52,9 @@ bin/backup-db staging
 
 Backups are custom-format `pg_dump` files in local ignored `backups/`. Verify with a PostgreSQL 17+ `pg_restore --list`; restore into a separate temporary database and check row counts before treating a backup as verified. Never restore over an active event merely to verify a backup.
 
-For event-day operations, take a backup before the draw and before the live session. Configure server-side scheduled backups and off-host retention before production; the first staging release includes the on-demand backup and restore-check procedure.
+For event-day operations, take a backup before the draw and before the live session. Production also runs `script/backup_production_db.sh` daily at 03:21 server time, installed as `/home/ubuntu/.local/lib/uv-bingo/backup-db` in the `ubuntu` crontab. Dumps are private files under `/home/ubuntu/backups/uv-bingo-production/daily`, with 14-day retention after a successful backup. Locking prevents overlapping runs; incomplete/invalid dumps never replace valid backups. The managed cron line is tagged `uv-bingo-production-backup`.
+
+`bin/backup-db production` downloads a separate off-host snapshot into local `backups/`. Those manual snapshots are not pruned by the server's daily retention. Keep periodic off-host copies in addition to the server schedule.
 
 ## Rollback and diagnostics
 
@@ -69,6 +71,22 @@ Clients resync on reconnect, when the tab becomes visible, and every 15 seconds.
 
 The content security policy permits local assets, nonce-authorized importmap scripts/Turbo loading-bar styles and the current host's WebSocket endpoint. It blocks inline script attributes, plugins and embedding in other sites. Policy configuration follows the [Rails security guide](https://guides.rubyonrails.org/security.html#content-security-policy-header). A missing Discord `APP_URL` logs a configuration error and returns a private unavailable message before issuing a login token.
 
-## Production preparation
+## Production deployment and community trial
 
-Production config targets `bing.xenor.ovh` and is not deployed by staging commands. Point that hostname to `5.135.141.150` before the first production deployment. Provision separate secrets, install the production Discord application in the community server, configure the final domain, backups and endpoint, and deploy only when production is authorized.
+DNS `bingo.xenor.ovh` points to `5.135.141.150`. Keep separate secrets in the ignored, mode-600 `.envrc.production`; production has no staging HTTP-authentication middleware. The shared Discord app routes the two server IDs to separate databases/sites as described in [Discord setup](discord.md).
+
+```sh
+bin/kamal-production accessory boot db  # once, on a new host
+bin/deploy-production-safe
+bin/kamal-production app exec --reuse "bin/rails runner script/prepare_trial.rb"
+bin/backup-db production
+```
+
+Trial setup is explicit and idempotent; it is not part of normal deployment or database seeds. It creates two public, labeled test events:
+
+- `/e/proba-glosowania`: voting opens immediately for seven days, with 30 example proposals and zero example votes, so community votes start from zero. Participants can add their own proposals and use/withdraw their five votes.
+- `/e/plansza-testowa`: a saved 25-cell example draw in the live phase, with sample votes used only for this demo. Signed-in members can suggest `?`/`X`, and configured admins can mark fields. `/e/plansza-testowa/presentation` is its screenshot/presentation view.
+
+Rerunning setup preserves existing votes, dates, draw records and marks. Adjust trial dates in admin when needed; archive/delete the test events when the trial ends, then create a fresh real event for TGA.
+
+After the bot is installed in the UV community server, run `bin/discord-register production` and test `/bingo` in thread `1439938011650592859`. The website and public demo can be released before that installation; new community sign-ins require it.

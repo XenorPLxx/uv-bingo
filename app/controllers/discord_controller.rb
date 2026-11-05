@@ -6,10 +6,16 @@ class DiscordController < ActionController::Base
     payload = JSON.parse(request.raw_post)
     return render json: { type: 1 } if payload["type"] == 1
     unless payload["type"] == 2 && payload.dig("data", "name") == ENV.fetch("DISCORD_COMMAND", "bingo") &&
-        payload["guild_id"] == ENV.fetch("DISCORD_GUILD_ID", "") && payload.dig("member", "user", "id").present?
+        payload.dig("member", "user", "id").present?
       return head :forbidden
     end
     return head :bad_request if payload["id"].blank?
+    unless payload["guild_id"] == ENV.fetch("DISCORD_GUILD_ID", "")
+      staging_guild = ENV["DISCORD_STAGING_GUILD_ID"].presence
+      return head :forbidden unless staging_guild && payload["guild_id"] == staging_guild
+      return render json: DiscordInteractionRelay.call(body: request.raw_post,
+        signature: request.headers["X-Signature-Ed25519"], timestamp: request.headers["X-Signature-Timestamp"])
+    end
     if LoginToken.exists?(interaction_id: payload["id"])
       return private_reply("Ten link został już wysłany. Użyj /#{ENV.fetch('DISCORD_COMMAND', 'bingo')} ponownie, aby otrzymać nowy.")
     end
@@ -31,6 +37,9 @@ class DiscordController < ActionController::Base
     head :bad_request
   rescue ActiveRecord::RecordNotUnique
     private_reply("Żądanie zostało już obsłużone. Użyj komendy ponownie, jeśli potrzebujesz nowego linku.")
+  rescue DiscordInteractionRelay::Unavailable => error
+    Rails.logger.error("Staging Discord relay unavailable: #{error.class}")
+    private_reply("Logowanie do środowiska testowego jest chwilowo niedostępne. Spróbuj ponownie.")
   end
 
   private
