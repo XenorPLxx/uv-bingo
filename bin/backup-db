@@ -5,6 +5,9 @@ destination="${1:-staging}"
 case "$destination" in staging|production) ;; *) echo 'Unknown destination' >&2; exit 1;; esac
 mkdir -p backups
 file="backups/uv_bingo_${destination}_$(date -u +%Y%m%d_%H%M%S).dump"
-bin/kamal-env "$destination" accessory exec --quiet db "pg_dump -U uv_bingo -Fc uv_bingo_${destination}" > "$file"
-if [ ! -s "$file" ]; then echo 'Empty backup' >&2; exit 1; fi
+temporary="${file}.partial"
+trap 'rm -f "$temporary"' EXIT
+bin/kamal-env "$destination" accessory exec --reuse --raw --quiet db "pg_dump -U uv_bingo -Fc uv_bingo_${destination}" > "$temporary"
+if [ "$(head -c 5 "$temporary")" != 'PGDMP' ]; then echo 'Invalid backup format; refusing to save it' >&2; exit 1; fi
+mv "$temporary" "$file"
 printf 'Backup saved: %s\n' "$file"

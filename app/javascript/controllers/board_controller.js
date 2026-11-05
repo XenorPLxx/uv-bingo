@@ -31,7 +31,8 @@ export default class extends Controller {
       const response = await fetch(this.urlValue, { headers: { Accept: "application/json" }, cache: "no-store", signal: this.request.signal })
       if (!response.ok) throw new Error("state request failed")
       const data = await response.json()
-      if (data.phase !== this.phaseValue || data.revision !== this.revisionValue) {
+      if (data.phase !== this.phaseValue) { window.location.reload(); return }
+      if (data.revision !== this.revisionValue) {
         if (data.html) this.contentTarget.innerHTML = data.html
         this.revisionValue = data.revision
         this.phaseValue = data.phase

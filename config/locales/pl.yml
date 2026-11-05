@@ -1,0 +1,30 @@
+pl:
+  errors:
+    format: "%{attribute} %{message}"
+    messages:
+      blank: "nie może być pusta"
+      taken: "już istnieje"
+      invalid: "ma nieprawidłową wartość"
+      too_long: "może mieć najwyżej %{count} znaków"
+      inclusion: "ma niedozwoloną wartość"
+  activerecord:
+    errors:
+      messages:
+        record_invalid: "Nie zapisano zmian: %{errors}"
+        restrict_dependent_destroy:
+          has_many: "Istnieją powiązane dane."
+          has_one: "Istnieją powiązane dane."
+    attributes:
+      option:
+        text: "Propozycja"
+        normalized_text: "Propozycja"
+      event:
+        title: "Nazwa"
+        slug: "Adres"
+        description: "Opis"
+        opens_at: "Początek głosowania"
+        closes_at: "Koniec głosowania"
+      proposal:
+        mark: "Oznaczenie"
+      cell:
+        mark: "Oznaczenie"
