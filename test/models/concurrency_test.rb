@@ -7,6 +7,32 @@ class ConcurrencyTest < ActiveSupport::TestCase
     [ Proposal, Cell, Draw, AuditEntry, Vote, Option, LoginToken, Session, Participant, Event ].each(&:delete_all)
   end
 
+  test "simultaneous Discord sign-ins share one account and each receive a private link" do
+    key = Ed25519::SigningKey.generate
+    gate = Queue.new
+    with_env DISCORD_PUBLIC_KEY: key.verify_key.to_bytes.unpack1("H*"), DISCORD_GUILD_ID: "guild-123", APP_URL: "https://bingo.example" do
+      threads = 2.times.map do |attempt|
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do
+            gate.pop
+            timestamp = Time.now.to_i.to_s
+            body = JSON.generate(id: "concurrent-login-#{attempt}", type: 2, guild_id: "guild-123", data: { name: "bingo" },
+              member: { user: { id: "same-discord-user", username: "Tester" } })
+            client = ActionDispatch::Integration::Session.new(Rails.application)
+            client.post "/discord/interactions", params: body, headers: { "CONTENT_TYPE" => "application/json",
+              "X-Signature-Ed25519" => key.sign(timestamp + body).unpack1("H*"), "X-Signature-Timestamp" => timestamp }
+            [ client.response.status, client.response.parsed_body.dig("data", "flags") ]
+          end
+        end
+      end
+      2.times { gate << true }
+      assert_equal [ [ 200, 64 ], [ 200, 64 ] ], threads.map(&:value)
+    end
+    participant = Participant.find_by!(discord_id: "same-discord-user")
+    assert_equal 1, Participant.where(discord_id: participant.discord_id).count
+    assert_equal [ participant.id, participant.id ], LoginToken.order(:id).pluck(:participant_id)
+  end
+
   test "simultaneous requests can consume only the slot freed by withdrawal" do
     event = create_event
     voter = create_participant

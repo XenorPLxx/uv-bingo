@@ -15,13 +15,17 @@ Application ID: `1567880594380030002`. The bot user is **TGA Bingo**. The same a
 4. After production is healthy, set its shared interactions endpoint. Source `.envrc.production` and run `bundle exec ruby script/configure_discord_endpoint.rb https://bingo.xenor.ovh/discord/interactions`. Discord verifies a signed PING before accepting the change.
 5. Run `/bingo` in the appropriate server. The private reply contains a single-use login button valid for ten minutes; the website asks for confirmation of the named account. Staging additionally requires HTTP credentials. Production does not use Basic Auth.
 
-Community installation may be completed after the website launch. The server-only global command can be registered beforehand; installing the app then makes it available without another registration step. Until installation is complete, community members can view the trial pages but cannot obtain new production login links through `/bingo`.
+Community installation may be completed after the website launch. The server-only global command can be registered beforehand. If it is missing from a newly installed server, run `bin/discord-register production guild` to register it directly there; guild commands update immediately. Both production and staging now also have this direct registration. Until installation is complete, community members can view the trial pages but cannot obtain new production login links through `/bingo`.
+
+An archived thread must be reopened before members can use commands in it. Refresh Discord after changing installation or command settings. Reinstalling the staging app is unnecessary when its existing `/bingo` command is visible.
 
 ## Routing and verification
 
 Discord configures one interaction URL per application. Production verifies the Ed25519 signature over the exact body/timestamp and enforces the timestamp window before routing. Community-server commands create production accounts/tokens normally. Only the configured private-server `/bingo` command is relayed to staging, preserving signed bytes and signature headers. Staging verifies the signature again and deduplicates the interaction in its own database.
 
 Relay requests use HTTPS, no redirects/retries, short network timeouts and a two-second total deadline. Only an ephemeral response is accepted. A staging outage returns a private unavailable message; community commands continue locally. Unknown servers/commands and invalid signatures are rejected. Production does not create accounts or login tokens for relayed staging commands.
+
+Returning members reuse the account identified by their Discord ID and receive a new login token for each new interaction. PostgreSQL's unique index, rather than a uniqueness validator before insertion, resolves concurrent account creation for `create_or_find_by!`.
 
 `/bingo` uses HTTP interactions rather than a Gateway connection; the bot can appear offline while commands work. The webhook is the only app route that bypasses staging HTTP authentication and always verifies Discord signatures. Signed PING requests have no server ID and are handled before guild routing.
 

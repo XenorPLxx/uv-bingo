@@ -100,3 +100,9 @@ These are clearly labeled test events. Production has configuration only and has
 - Explicit, idempotent trial setup prepares `/e/proba-glosowania` with 30 sample proposals and zero sample votes, open for seven days, and `/e/plansza-testowa` with a saved 25-cell live demo draw. Existing votes, dates and marks survive reruns. Production database seeds remain empty on ordinary deployments.
 - Added production deployment/access checks and a daily private PostgreSQL backup script with locking, validated output and 14-day retention. Manual off-host snapshots continue to use `bin/backup-db production`.
 - Application suite: 64 tests / 629 assertions. Chrome suite: 9 tests / 177 assertions. Added coverage for trial setup/reruns, preserving community activity, relay signatures/routing, primary database isolation, private responses, unsafe endpoints, upstream failures and the response deadline. RuboCop passes; Brakeman reports no warnings.
+
+## Returning Discord members — 5 November 2026
+
+- Reproduced a second-login failure: the participant uniqueness validator rejected the insert before `create_or_find_by!` could resolve the existing account. Account uniqueness remains enforced by PostgreSQL; removing the redundant validator lets Rails return the existing account and safely resolve simultaneous sign-ins.
+- Added signed-interaction regressions for returning members, new links on repeated commands, retained votes/account identity, updated display names and simultaneous first sign-ins. Application suite: 66 tests / 657 assertions; RuboCop passes. No database migration is required.
+- Confirmed installation in both Discord servers and registered `/bingo` directly in the production server, alongside its existing global command. The configured community trial thread was archived when checked; it must be reopened to use commands there.

@@ -57,6 +57,33 @@ class DiscordTest < ActionDispatch::IntegrationTest
     Rails.logger.stop_broadcasting_to(logger) if logger
   end
 
+  test "returning members receive fresh login links without losing their account or votes" do
+    voter = create_participant(discord_id: "returning-discord-user", display_name: "Poprzednia nazwa")
+    event = create_event
+    option = Voting.cast!(event: event, participant: voter, text: "Nowy zwiastun").option
+    with_env DISCORD_PUBLIC_KEY: @key.verify_key.to_bytes.unpack1("H*"), DISCORD_GUILD_ID: "guild-123", APP_URL: "https://bingo.example" do
+      tokens = 2.times.map do |attempt|
+        payload = { id: "returning-interaction-#{attempt}", type: 2, guild_id: "guild-123", data: { name: "bingo" },
+          member: { nick: "Nowa nazwa #{attempt}", user: { id: voter.discord_id, username: "Tester" } } }
+        assert_no_difference [ "Participant.count", "Vote.count", "Option.count" ] do
+          assert_difference "LoginToken.count", 1 do
+            send_interaction(payload)
+            assert_response :success
+          end
+        end
+        assert_equal 64, response.parsed_body.dig("data", "flags")
+        url = URI(response.parsed_body.dig("data", "components", 0, "components", 0, "url"))
+        assert_equal "bingo.example", url.host
+        token = LoginToken.find_usable(URI.decode_www_form(url.query).to_h.fetch("token"))
+        assert_equal voter.id, token.participant_id
+        assert_equal "Nowa nazwa #{attempt}", voter.reload.display_name
+        assert_equal option.id, voter.votes.sole.option_id
+        token.id
+      end
+      assert_equal 2, tokens.uniq.size
+    end
+  end
+
   test "shared app relays only verified staging commands and keeps production tokens local" do
     forwarded = []
     relay = Class.new(DiscordInteractionRelay)
