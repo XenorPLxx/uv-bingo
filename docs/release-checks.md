@@ -26,3 +26,5 @@ These are clearly labeled test events. Production has configuration only and has
 - Inline community suggestions and colored admin decisions work in both board views. Clicking the selected mark again clears it; the board updates without navigation or confirmation dialogs.
 - Application suite: 31 tests / 188 assertions. Chrome suite: 2 tests / 39 assertions, including withdrawal at the limit, two-browser live updates, role-specific controls, and long text fitting on desktop and narrow screens.
 - RuboCop passes; Brakeman reports no warnings. No database migration is required.
+- Deployed application commit: `bf32d77`. Staging access checks passed for pages, assets, Cable and the Discord endpoint.
+- A temporary staging participant successfully cast and withdrew a vote while preserving the option, then suggested and cleared a mark from presentation mode. A separate browser received both live updates. Event navigation exposes the live test board, and the saved draw record remained unchanged. The temporary account, login tokens and test activity were removed afterward.
