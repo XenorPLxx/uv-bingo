@@ -2,21 +2,26 @@ import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
 
 export default class extends Controller {
-  static targets = ["content", "connection", "feedback"]
+  static targets = ["content", "connection", "feedback", "dialog", "dialogMeta", "dialogTitle", "dialogActions", "dialogVoters"]
   static values = { eventId: Number, url: String, revision: Number, phase: String }
   connect() {
+    this.compact = window.matchMedia("(max-width: 760px)")
+    this.lastSync = Date.now()
     this.consumer = createConsumer()
     this.subscription = this.consumer.subscriptions.create({ channel: "EventChannel", event_id: this.eventIdValue }, {
       connected: () => { this.online = true; this.refresh() },
-      disconnected: () => { this.online = false; this.connectionTarget.textContent = "Ponowne łączenie…" },
-      received: () => this.refresh()
+      disconnected: () => { this.online = false; this.showStatus("Ponowne łączenie…") },
+      received: () => this.queueRefresh()
     })
-    this.timer = setInterval(() => this.refresh(), 15000)
+    // Pushes carry changes. Polling covers a dropped connection and otherwise acts as a slow safety resync.
+    this.timer = setInterval(() => { if (!this.online || Date.now() - this.lastSync >= 60000) this.refresh() }, 15000)
     this.visibility = () => { if (!document.hidden) this.refresh() }
     document.addEventListener("visibilitychange", this.visibility)
   }
   disconnect() {
     clearInterval(this.timer)
+    clearTimeout(this.pushTimer)
+    this.pushTimer = null
     clearTimeout(this.feedbackTimer)
     document.removeEventListener("visibilitychange", this.visibility)
     this.request?.abort()
@@ -24,6 +29,20 @@ export default class extends Controller {
     this.subscription?.unsubscribe()
     this.consumer?.disconnect()
   }
+  // Folds pushes arriving while a refresh is scheduled into it. The random delay spreads viewers' requests.
+  queueRefresh(delay = 150 + Math.random() * 450) {
+    if (!this.element.isConnected || this.pushTimer) return
+    this.pushTimer = setTimeout(() => {
+      this.pushTimer = null
+      this.refresh()
+    }, delay)
+  }
+
+  showStatus(text) {
+    // An archived board no longer changes, so connection details would only distract.
+    this.connectionTarget.textContent = this.phaseValue === "archived" ? "ZAKOŃCZONE" : text
+  }
+
   async refresh() {
     if (document.hidden || !this.element.isConnected) return
     if (this.loading) { this.refreshPending = true; return }
@@ -38,21 +57,25 @@ export default class extends Controller {
       if (response.status === 404) { window.location.replace("/?removed=1"); return }
       if (!response.ok) throw new Error("state request failed")
       const data = await response.json()
+      this.lastSync = Date.now()
       if (data.phase !== this.phaseValue) { window.location.reload(); return }
       if (data.revision !== this.revisionValue) {
         const focusedControl = document.activeElement?.dataset.boardControl
+        const focusInDialog = this.dialogTarget.contains(document.activeElement)
         if (data.html) {
           const before = this.snapshot()
           this.contentTarget.innerHTML = data.html
           this.animateChanges(before)
+          if (this.dialogTarget.open && !this.renderDialog()) this.dialogTarget.close()
         }
-        if (focusedControl) this.contentTarget.querySelector(`[data-board-control="${focusedControl}"]`)?.focus({ preventScroll: true })
+        const scope = focusInDialog ? this.dialogTarget : this.contentTarget
+        if (focusedControl) scope.querySelector(`[data-board-control="${focusedControl}"]`)?.focus({ preventScroll: true })
         this.revisionValue = data.revision
         this.phaseValue = data.phase
       }
-      this.connectionTarget.textContent = this.online ? "● POŁĄCZONO NA ŻYWO" : "● ODŚWIEŻANIE CO 15 S"
+      this.showStatus(this.online ? "● POŁĄCZONO NA ŻYWO" : "● ODŚWIEŻANIE CO 15 S")
     } catch (error) {
-      if (this.element.isConnected) this.connectionTarget.textContent = "Brak aktualizacji — ponawiamy połączenie…"
+      if (this.element.isConnected) this.showStatus("Brak aktualizacji — ponawiamy połączenie…")
     } finally {
       clearTimeout(timeout)
       this.loading = false
@@ -122,11 +145,64 @@ export default class extends Controller {
     if (celebration && Number(celebration.dataset.lines) > before.lines) celebration.classList.add("celebrate")
   }
 
+  openCell(event) {
+    this.clearFeedback()
+    this.dialogPosition = event.currentTarget.closest(".bingo-cell").dataset.position
+    if (this.renderDialog()) this.dialogTarget.showModal()
+  }
+
+  // On phones the cells are too small for their controls, so tapping anywhere opens the details instead.
+  openFromCell(event) {
+    if (!this.compact.matches || event.target.closest("button, a, form")) return
+    this.openCell(event)
+  }
+
+  closeDialog() { this.dialogTarget.close() }
+
+  closeOnBackdrop(event) {
+    if (event.target === this.dialogTarget) this.dialogTarget.close()
+  }
+
+  dialogClosed() {
+    this.clearFeedback()
+    this.contentTarget.querySelector(`.bingo-cell[data-position="${this.dialogPosition}"] .cell-number`)?.focus({ preventScroll: true })
+    this.dialogPosition = null
+  }
+
+  // The dialog mirrors the cell: its full text, its suggestion and decision controls, and who voted for it.
+  renderDialog() {
+    const cell = this.contentTarget.querySelector(`.bingo-cell[data-position="${this.dialogPosition}"]`)
+    if (!cell) return false
+    this.dialogTarget.dataset.mark = cell.dataset.mark
+    this.dialogMetaTarget.textContent = cell.dataset.meta
+    this.dialogTitleTarget.textContent = cell.querySelector(".cell-text [data-fit-text-target]").textContent
+    this.dialogActionsTarget.replaceChildren(cell.querySelector(".cell-bottom").cloneNode(true))
+    const voters = cell.querySelector("template.cell-voters")
+    if (voters) {
+      const heading = document.createElement("h3")
+      heading.textContent = "Kto głosował"
+      const list = document.createElement("ul")
+      list.className = "voter-chips"
+      list.append(voters.content.cloneNode(true))
+      this.dialogVotersTarget.replaceChildren(heading, list)
+    } else {
+      this.dialogVotersTarget.replaceChildren()
+    }
+    return true
+  }
+
   feedback(message, failed = false) {
     if (!this.element.isConnected) return
+    this.clearFeedback()
+    // Modal dialogs put the rest of the page behind their backdrop and make it inert.
+    const target = this.feedbackTargets.find(target => this.dialogTarget.contains(target) === this.dialogTarget.open)
+    target.textContent = message
+    target.classList.toggle("failed", failed)
+    this.feedbackTimer = setTimeout(() => this.clearFeedback(), failed ? 10000 : 3000)
+  }
+
+  clearFeedback() {
     clearTimeout(this.feedbackTimer)
-    this.feedbackTarget.textContent = message
-    this.feedbackTarget.classList.toggle("failed", failed)
-    this.feedbackTimer = setTimeout(() => { this.feedbackTarget.textContent = "" }, failed ? 10000 : 3000)
+    this.feedbackTargets.forEach(target => { target.textContent = "" })
   }
 }

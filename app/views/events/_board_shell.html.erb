@@ -1,5 +1,16 @@
 <section id="board" data-controller="board" data-board-event-id-value="<%= @event.id %>" data-board-url-value="<%= state_event_path(@event, presentation: @presentation ? '1' : '0') %>" data-board-revision-value="<%= @event.revision %>" data-board-phase-value="<%= @event.phase %>">
-  <div class="board-meta"><span><%= @event.rehearsal? ? 'WYDARZENIE TESTOWE' : 'PLANSZA 5 × 5' %></span><span data-board-target="connection" role="status">Łączenie z planszą…</span></div>
+  <div class="board-meta"><span><%= @event.rehearsal? ? 'WYDARZENIE TESTOWE' : 'PLANSZA 5 × 5' %></span><span data-board-target="connection" role="status"><%= @event.phase == 'archived' ? 'ZAKOŃCZONE' : 'Łączenie z planszą…' %></span></div>
   <p class="board-feedback" data-board-target="feedback" role="status" aria-live="polite"></p>
-  <div data-board-target="content"><%= render "events/board" %></div>
+  <div data-board-target="content"><%= render "events/board", rankings: !@presentation %></div>
+  <dialog class="voters-dialog cell-dialog" id="cell-dialog" aria-labelledby="cell-dialog-title" data-board-target="dialog" data-action="click->board#closeOnBackdrop close->board#dialogClosed">
+    <div class="voters-dialog-body">
+      <div class="voters-dialog-head">
+        <div><span class="eyebrow" data-board-target="dialogMeta"></span><h2 id="cell-dialog-title" data-board-target="dialogTitle"></h2></div>
+        <button type="button" class="dialog-close" data-action="board#closeDialog" aria-label="Zamknij">×</button>
+      </div>
+      <p class="board-feedback" data-board-target="feedback" role="status" aria-live="polite"></p>
+      <div class="cell-dialog-actions" data-board-target="dialogActions"></div>
+      <div class="cell-dialog-voters" data-board-target="dialogVoters"></div>
+    </div>
+  </dialog>
 </section>

@@ -136,6 +136,15 @@ class AdminEventsTest < ActionDispatch::IntegrationTest
     assert_select ".empty-list", "Brak głosów i propozycji."
   end
 
+  test "history lines and vote counts read naturally" do
+    option = seed_options(@event, 1).first
+    post moderate_admin_event_path(@event), params: { option_id: option.id, reason: "Poza tematem", operation: "disqualify" }
+    follow_redirect!
+    assert_select ".audit-summary strong", @admin.display_name
+    assert_select ".audit-summary span", "Wykluczenie: „#{option.text}” (Poza tematem)"
+    assert_select "#moderation-option-#{option.id} p", /\A1 głos · /
+  end
+
   test "draw action requires twenty five eligible proposals with at least one vote" do
     options = seed_options(@event, 26)
     @event.votes.where(option: options.last(2)).delete_all

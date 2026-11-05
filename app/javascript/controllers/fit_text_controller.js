@@ -13,8 +13,11 @@ export default class extends Controller {
   }
   disconnect() { this.observer.disconnect(); cancelAnimationFrame(this.frame) }
   fit() {
+    // Phone cells clamp their text instead; the cell details dialog shows it in full.
+    const compact = window.matchMedia("(max-width: 760px)").matches
     this.textTargets.forEach(text => {
       text.style.fontSize = ""
+      if (compact) return
       let size = parseFloat(getComputedStyle(text).fontSize)
       const available = text.parentElement.clientHeight - 8
       while (text.offsetHeight > available && size > 12) {

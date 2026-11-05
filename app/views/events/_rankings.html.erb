@@ -1,0 +1,17 @@
+<section class="rankings" aria-label="Ranking">
+  <% [ [ "Najlepsze typy", @leaderboard.predictors ], [ "Najlepsze propozycje", @leaderboard.proposers ] ].each do |title, entries| %>
+    <div class="panel ranking">
+      <h2><%= title %></h2>
+      <ol class="ranking-list">
+        <% @leaderboard.visible(entries, current_participant).each do |entry| %>
+          <li class="<%= 'mine' if current_participant && entry.participant == current_participant %> <%= 'outside' if entry.rank > Leaderboard::TOP %>">
+            <span class="ranking-rank"><%= entry.rank %>.</span>
+            <span class="ranking-name"><%= entry.participant.display_name %></span>
+            <span class="ranking-score"><%= count_label(entry.score, "trafienie", "trafienia", "trafień") %></span>
+            <% if entry.details.any? %><ul class="ranking-details"><% entry.details.each do |text| %><li><%= text %></li><% end %></ul><% end %>
+          </li>
+        <% end %>
+      </ol>
+    </div>
+  <% end %>
+</section>

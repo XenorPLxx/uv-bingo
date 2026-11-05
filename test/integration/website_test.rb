@@ -78,7 +78,8 @@ class WebsiteTest < ActionDispatch::IntegrationTest
         assert_response :success
         assert_select ".proposal-button", 50
         assert_select ".decision-button", 50
-        assert_select "dialog", 0
+        # Suggestions and decisions stay inline; the cell details dialog only opens on request.
+        assert_select "dialog[open]", 0
         get reveal_event_path(@event)
         assert_select ".proposal-button, .decision-button", 0
         get state_event_path(@event), params: { presentation: "1" }
@@ -370,6 +371,80 @@ class WebsiteTest < ActionDispatch::IntegrationTest
         raise ActiveRecord::Rollback
       end
     end
+  end
+
+  test "the board marks the viewer's picks, shows voters to members and ranks confirmed hits" do
+    options = seed_options(@event, 25)
+    admin = create_participant
+    picked = options[3]
+    Voting.cast!(event: @event, participant: @voter, option_id: picked.id)
+    own = Voting.cast!(event: @event, participant: @voter, text: "Moja zapowiedź").option
+    2.times { Voting.cast!(event: @event, participant: create_participant, option_id: own.id) }
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: admin)
+    @event.update!(state: "live")
+    picked_cell = @event.cells.find_by!(option: picked)
+    own_cell = @event.cells.find_by!(option: own)
+
+    get event_path(@event)
+    assert_select "[data-position='#{picked_cell.position}'] .cell-number", /2 głosy/
+    assert_select ".pick-star, template.cell-voters, .rankings", 0
+
+    sign_in_as(@voter)
+    get event_path(@event)
+    assert_select ".bingo-cell.my-pick", 2
+    assert_select "[data-position='#{picked_cell.position}'] .pick-star[title=?]", "Twój głos"
+    assert_select "[data-position='#{own_cell.position}'] .pick-star[title=?]", "Twój głos i Twoja propozycja"
+    assert_select "[data-position='#{own_cell.position}'][data-meta=?]", "Pole #{format('%02d', own_cell.position + 1)} · 3 głosy · bez oznaczenia · Twój głos i Twoja propozycja"
+    assert_select "[data-position='#{picked_cell.position}'] template.cell-voters li", 2
+    assert_select ".rankings", 0, "Rankings appear once a cell is confirmed"
+
+    BoardActions.mark!(cell: picked_cell, admin: admin, mark: "cross", revision: 0)
+    get event_path(@event)
+    assert_select ".rankings .ranking h2" do |headings|
+      assert_equal [ "Najlepsze typy", "Najlepsze propozycje" ], headings.map(&:text)
+    end
+    assert_select ".rankings li.mine .ranking-score", "1 trafienie"
+    assert_select ".rankings .ranking-details li", picked.text
+    get state_event_path(@event), params: { refresh: "1" }
+    assert_includes response.parsed_body.fetch("html"), "Najlepsze typy"
+    get state_event_path(@event), params: { refresh: "1", presentation: "1" }
+    assert_not_includes response.parsed_body.fetch("html"), "Najlepsze typy"
+    get presentation_event_path(@event)
+    assert_select ".rankings", 0
+    assert_select ".cell-number", 25
+    get reveal_event_path(@event)
+    assert_select ".cell-number, template.cell-voters, .rankings, [data-action*=openFromCell]", 0
+
+    @event.update!(state: "archived")
+    get event_path(@event)
+    assert_select "[data-board-target=connection]", "ZAKOŃCZONE"
+    assert_select ".rankings"
+  end
+
+  test "board rankings and voter names remain private to signed-in participants" do
+    option = seed_options(@event, 25).first
+    option.participant.update!(display_name: "Prywatna nazwa autora")
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: @voter)
+    @event.update!(state: "live")
+    BoardActions.mark!(cell: @event.cells.find_by!(option: option), admin: @voter, mark: "cross", revision: 0)
+
+    [ "live", "archived" ].each do |state|
+      @event.update!(state: state)
+      [ root_path, event_path(@event), presentation_event_path(@event), reveal_event_path(@event), state_event_path(@event, refresh: "1"), state_event_path(@event, refresh: "1", presentation: "1") ].each do |path|
+        get path
+        assert_response :success
+        assert_not_includes response.body, "Prywatna nazwa autora", "Names must not leak through #{path}"
+      end
+    end
+
+    sign_in_as(@voter)
+    get event_path(@event)
+    assert_select ".ranking-name", "Prywatna nazwa autora"
+    assert_select "template.cell-voters li", "Prywatna nazwa autora"
+    get state_event_path(@event), params: { refresh: "1" }
+    assert_includes response.parsed_body.fetch("html"), "Prywatna nazwa autora"
   end
 
   test "event deletion requires admin access and exact typed confirmation" do

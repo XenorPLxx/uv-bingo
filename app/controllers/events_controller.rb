@@ -20,12 +20,14 @@ class EventsController < ApplicationController
   def presentation
     raise ActiveRecord::RecordNotFound unless @event.draw
     @presentation = true
+    prepare_board
     render :board
   end
 
   def reveal
     raise ActiveRecord::RecordNotFound unless @event.draw
     @presentation = true
+    prepare_board
     render :reveal
   end
 
@@ -35,7 +37,8 @@ class EventsController < ApplicationController
     changed = params[:refresh] == "1" || params[:revision] != @event.revision.to_s || params[:phase] != @event.phase
     if @event.draw && changed
       @presentation = params[:presentation] == "1"
-      data[:html] = render_to_string(partial: "events/board", formats: [ :html ])
+      prepare_board
+      data[:html] = render_to_string(partial: "events/board", formats: [ :html ], locals: { rankings: !@presentation })
     elsif !@event.draw && changed
       prepare_voting
       data[:voting] = {
@@ -59,7 +62,17 @@ class EventsController < ApplicationController
 
   def prepare_event
     @events = Event.includes(:draw).order(created_at: :desc)
-    prepare_voting
+    @event.draw ? prepare_board : prepare_voting
+  end
+
+  def prepare_board
+    # Voter names are visible to signed-in participants only.
+    @voters_by_option = current_participant ? @event.voter_names_by_option : {}
+    @my_voted_option_ids = current_participant ? current_participant.votes.where(event: @event).pluck(:option_id).to_set : Set.new
+    # A merged proposal still counts as the author's pick through the proposal it was merged into.
+    authored = current_participant ? @event.options.where(participant: current_participant).pluck(:id, :merged_into_id) : []
+    @my_proposed_option_ids = authored.flatten.compact.to_set
+    @leaderboard = Leaderboard.new(@event) if current_participant && !@presentation
   end
 
   def prepare_voting

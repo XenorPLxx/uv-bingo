@@ -33,7 +33,7 @@
       <div class="moderation-item <%= 'disqualified' if option.disqualified_at %> <%= 'merged' if option.merged_into_id %>" id="moderation-option-<%= option.id %>">
         <div>
           <strong><%= option.text %></strong>
-          <p><%= @counts.fetch(option.id, 0) %> głosów · <%= option.participant.display_name %><%= ' · WYKLUCZONA' if option.disqualified_at %></p>
+          <p><%= votes_label(@counts.fetch(option.id, 0)) %> · <%= option.participant.display_name %><%= ' · WYKLUCZONA' if option.disqualified_at %></p>
           <%= render "option_voters", option_id: option.id, names: @voters_by_option[option.id] %>
           <% if option.merged_into %><p class="merge-destination">Połączona z: <%= link_to option.merged_into.text, "#moderation-option-#{option.merged_into_id}" %></p><% end %>
         </div>
@@ -54,4 +54,4 @@
     <% end %>
   </div>
 </section>
-<section class="panel audit-panel"><h2>Historia administracji</h2><% @audits.each do |entry| %><div class="audit-entry"><span><%= entry.created_at.in_time_zone.strftime('%d.%m %H:%M:%S') %></span><strong><%= entry.participant.display_name %> · <%= entry.action %></strong><details><summary>Szczegóły</summary><pre><%= JSON.pretty_generate(entry.details) %></pre></details></div><% end %></section>
+<section class="panel audit-panel"><h2>Historia administracji</h2><% @audits.each do |entry| %><div class="audit-entry"><span><%= entry.created_at.in_time_zone.strftime('%d.%m %H:%M:%S') %></span><div class="audit-summary"><strong><%= entry.participant.display_name %></strong> <span><%= audit_summary(entry) %></span></div><details><summary>Szczegóły</summary><pre><%= JSON.pretty_generate(entry.details) %></pre></details></div><% end %></section>

@@ -1,9 +1,17 @@
-<% lines = @event.completed_lines; can_act = local_assigns.fetch(:interactive, true) && current_participant && @event.state == 'live' %>
+<% lines = @event.completed_lines; winning = lines.flatten; interactive = local_assigns.fetch(:interactive, true); can_act = interactive && current_participant && @event.state == 'live' %>
 <div class="bingo-grid" aria-label="Plansza bingo 5 na 5" data-controller="fit-text">
   <% @event.cells.includes(:proposals).each do |cell| %>
     <% proposals = cell.current_proposals; mine = proposals.find { |p| p.participant_id == current_participant&.id } %>
-    <article class="bingo-cell mark-<%= cell.mark %> <%= 'center-cell' if cell.position == 12 %> <%= 'winning-cell' if lines.flatten.include?(cell.position) %>" data-position="<%= cell.position %>" data-mark="<%= cell.mark %>" aria-label="Pole <%= cell.position + 1 %>: <%= cell.text %>, <%= mark_label(cell.mark) %>">
-      <div class="cell-top"><span><%= format('%02d', cell.position + 1) %></span><% if cell.position == 12 %><span class="center-label">NAJWIĘCEJ GŁOSÓW</span><% end %></div>
+    <% number = format('%02d', cell.position + 1) %>
+    <% pick = [ ("Twój głos" if @my_voted_option_ids&.include?(cell.option_id)), ("Twoja propozycja" if @my_proposed_option_ids&.include?(cell.option_id)) ].compact.join(" i ") %>
+    <article class="bingo-cell mark-<%= cell.mark %> <%= 'center-cell' if cell.position == 12 %> <%= 'winning-cell' if winning.include?(cell.position) %> <%= 'my-pick' if pick.present? %>" data-position="<%= cell.position %>" data-mark="<%= cell.mark %>" data-meta="<%= ["Pole #{number}", votes_label(cell.votes_count), mark_label(cell.mark), pick.presence].compact.join(' · ') %>"<% if interactive %> data-action="click->board#openFromCell"<% end %> aria-label="Pole <%= cell.position + 1 %>: <%= cell.text %>, <%= mark_label(cell.mark) %><%= ", #{pick}" if pick.present? %>">
+      <div class="cell-top">
+        <span class="cell-id">
+          <% if interactive %><button type="button" class="cell-number" data-action="board#openCell" aria-haspopup="dialog" aria-label="Pole <%= cell.position + 1 %>: szczegóły<%= ' i głosujący' if current_participant %>"><%= number %> · <%= votes_label(cell.votes_count) %></button><% else %><span><%= number %></span><% end %>
+          <% if pick.present? %><span class="pick-star" title="<%= pick %>" aria-hidden="true">✦</span><% end %>
+        </span>
+        <% if cell.position == 12 %><span class="center-label">NAJWIĘCEJ GŁOSÓW</span><% end %>
+      </div>
       <div class="cell-text"><span data-fit-text-target="text"><%= cell.text %></span></div>
       <span class="official-mark" aria-hidden="true"><%= mark_symbol(cell.mark) %></span>
       <div class="cell-bottom">
@@ -11,11 +19,11 @@
           <% %w[question cross].each do |mark| %>
             <% count = proposals.count { |proposal| proposal.mark == mark }; selected = mine&.mark == mark %>
             <% if can_act %>
-              <%= button_to event_proposals_path(@event), params: { cell_id: cell.id, mark: selected ? 'blank' : mark, revision: cell.revision, presentation: @presentation ? '1' : '0' }, class: "proposal-button #{mark}-count", data: { board_control: "proposal-#{cell.position}-#{mark}" }, aria: { label: "#{selected ? 'Cofnij propozycję' : 'Zaproponuj'} #{mark_symbol(mark)} w polu #{cell.position + 1} (#{count})", pressed: selected }, title: "#{selected ? 'Cofnij propozycję' : 'Zaproponuj'}: #{mark_label(mark)}", form: { data: { action: "submit->board#submit" } } do %>
+              <%= button_to event_proposals_path(@event), params: { cell_id: cell.id, mark: selected ? 'blank' : mark, revision: cell.revision, presentation: @presentation ? '1' : '0' }, class: "proposal-button #{mark}-count", data: { board_control: "proposal-#{cell.position}-#{mark}", count: count }, aria: { label: "#{selected ? 'Cofnij propozycję' : 'Zaproponuj'} #{mark_symbol(mark)} w polu #{cell.position + 1} (#{count})", pressed: selected }, title: "#{selected ? 'Cofnij propozycję' : 'Zaproponuj'}: #{mark_label(mark)}", form: { data: { action: "submit->board#submit" } } do %>
                 <span><%= mark_symbol(mark) %></span><span class="proposal-total"><%= count %></span>
               <% end %>
             <% else %>
-              <span class="proposal-counter <%= mark %>-count"><span><%= mark_symbol(mark) %></span><span class="proposal-total"><%= count %></span></span>
+              <span class="proposal-counter <%= mark %>-count" data-count="<%= count %>"><span><%= mark_symbol(mark) %></span><span class="proposal-total"><%= count %></span></span>
             <% end %>
           <% end %>
         </div>
@@ -28,7 +36,10 @@
           </div>
         <% end %>
       </div>
+      <% names = @voters_by_option&.[](cell.option_id) %>
+      <% if interactive && names.present? %><template class="cell-voters"><% names.each do |name| %><li><%= name %></li><% end %></template><% end %>
     </article>
   <% end %>
 </div>
 <% if lines.any? %><div class="bingo-celebration" role="status" data-lines="<%= lines.length %>"><div class="celebration-message">✦ BINGO! <span>Ukończone linie: <%= lines.length %></span></div></div><% end %>
+<% if local_assigns.fetch(:rankings, false) && @leaderboard&.any? %><%= render "events/rankings" %><% end %>

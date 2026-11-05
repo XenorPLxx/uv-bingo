@@ -156,7 +156,8 @@ class BingoTest < ApplicationSystemTestCase
     save_screenshot(Rails.root.join("tmp/screenshots/voters-desktop.png"))
     find("#voters-dialog .dialog-close").click
     assert_no_selector "dialog[open]"
-    assert_equal "option-#{watched.id}-count", page.evaluate_script("document.activeElement.id")
+    # The dialog's close event, which returns focus to the count, fires after the open attribute is removed.
+    assert_selector "#option-#{watched.id}-count:focus"
 
     within("#option-#{other.id}") { click_button "Głosuję +1" }
     assert_selector ".voting-feedback", text: "Głos zapisany."
@@ -384,6 +385,88 @@ class BingoTest < ApplicationSystemTestCase
     assert_selector "#option-#{option.id} .option-count", text: "2", wait: 5
   end
 
+  test "phone board shows all five columns and tapping a cell opens its details and controls" do
+    ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
+    options = seed_options(@event, 25)
+    options[0].update!(text: "Bardzo długa zapowiedź nowej gry z rozbudowanym zwiastunem, wieloma bohaterami i premierą w przyszłości".first(100))
+    Voting.cast!(event: @event, participant: @voter, option_id: options[0].id)
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: @voter)
+    @event.update!(state: "live")
+    cell = @event.cells.find_by!(option: options[0])
+    selector = "[data-position='#{cell.position}']"
+    browser_sign_in(@voter)
+    mobile_viewport
+    assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > window.innerWidth")
+    assert_equal 25, page.evaluate_script("Array.from(document.querySelectorAll('.bingo-cell')).filter(cell => { const box = cell.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth }).length")
+    assert_board_text_fits
+    assert_selector "#{selector} .pick-star"
+    save_screenshot(Rails.root.join("tmp/screenshots/board-phone.png"))
+
+    find("#{selector} .cell-text").click
+    within("dialog#cell-dialog[open]") do
+      assert_selector "h2", text: options[0].text
+      assert_selector "[data-board-target=dialogMeta]", text: /twój głos/i
+      assert_selector ".voter-chips li", text: "Tester UV"
+      find('button[aria-label^="Zaproponuj ?"]').click
+    end
+    assert_selector "dialog[open] .question-count[aria-pressed=true]", text: "1"
+    assert_selector "#{selector} .question-count[aria-pressed=true]", visible: :all
+    within("dialog[open]") { find('button[aria-label^="Ustaw oficjalne X"]').click }
+    assert_selector "dialog#cell-dialog[open][data-mark=cross]"
+    assert_selector "#{selector}.mark-cross"
+    assert_selector ".rankings .ranking-score", text: "1 trafienie"
+    save_screenshot(Rails.root.join("tmp/screenshots/board-phone-dialog.png"))
+    find("#cell-dialog .dialog-close").click
+    assert_no_selector "dialog[open]"
+
+    desktop_viewport
+    find("#{selector} .cell-text").click
+    assert_no_selector "dialog[open]", wait: 0.5
+    find("#{selector} .cell-number").click
+    assert_selector "dialog[open] h2", text: options[0].text
+    find("#cell-dialog .dialog-close").send_keys(:escape)
+    assert_no_selector "dialog[open]"
+    assert_selector "#{selector} .cell-number:focus"
+  end
+
+  test "cell details show failed requests and allow retry on a narrow phone" do
+    ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
+    seed_options(@event, 25)
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: @voter)
+    @event.update!(state: "live")
+    cell = @event.cells.first
+    browser_sign_in(@voter)
+    mobile_viewport(width: 320)
+    find("[data-position='0'] .cell-text").click
+    assert_selector "dialog[open]"
+    assert_equal false, page.evaluate_script("(() => { const dialog = document.querySelector('dialog[open]'); return dialog.scrollWidth > dialog.clientWidth })()")
+    page.execute_script(<<~JS)
+      window.originalFetch = window.fetch;
+      window.fetch = (url, options) => options?.method === 'POST'
+        ? Promise.resolve(new Response('{}', {status: 429, headers: {'Content-Type': 'application/json'}}))
+        : window.originalFetch(url, options);
+    JS
+    within("dialog[open]") { find('button[aria-label^="Zaproponuj X"]').click }
+    assert_selector "dialog[open] .board-feedback.failed", text: "Zbyt wiele kliknięć. Spróbuj za chwilę."
+    assert_no_selector "#board > .board-feedback", visible: true
+    assert_empty cell.current_proposals
+
+    page.execute_script("window.fetch = window.originalFetch")
+    within("dialog[open]") { find('button[aria-label^="Zaproponuj X"]').click }
+    assert_selector "dialog[open] .board-feedback:not(.failed)", text: "Twoja propozycja oznaczenia została zapisana."
+    assert_selector "dialog[open] .cross-count[aria-pressed=true]", text: "1"
+    find("#cell-dialog .dialog-close").click
+    assert_no_selector "dialog[open]"
+
+    [ 320, 360, 430, 760, 761, 900, 1024 ].each do |width|
+      mobile_viewport(width: width, height: 1000)
+      assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > innerWidth"), "Overflow at #{width}px"
+      assert_equal 25, page.evaluate_script("[...document.querySelectorAll('.bingo-cell')].filter(cell => { const r = cell.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth }).length"), "Missing columns at #{width}px"
+    end
+  end
+
   test "admin can review and delete a drawn event and live viewers leave the deleted board" do
     ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
     seed_options(@event, 25)
@@ -499,7 +582,12 @@ class BingoTest < ApplicationSystemTestCase
 
   def assert_board_text_fits
     fits = Selenium::WebDriver::Wait.new(timeout: 5).until do
-      page.evaluate_script("Array.from(document.querySelectorAll('.cell-text span')).every(text => text.offsetHeight <= text.parentElement.clientHeight - 8)")
+      # Phone cells clamp their text inside its own row; larger boards fit the full text with room to spare.
+      page.evaluate_script(<<~JS)
+        Array.from(document.querySelectorAll('.bingo-grid .cell-text span')).every(text => matchMedia('(max-width: 760px)').matches
+          ? text.getBoundingClientRect().bottom <= text.parentElement.getBoundingClientRect().bottom + 1
+          : text.offsetHeight <= text.parentElement.clientHeight - 8)
+      JS
     end
     assert fits, "Full option text must fit without overlapping board controls"
   end
