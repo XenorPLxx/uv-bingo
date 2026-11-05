@@ -20,7 +20,7 @@ class DiscordController < ActionController::Base
     raw = LoginToken.issue!(participant: participant, interaction_id: payload.fetch("id"))
     url = "#{ENV.fetch('APP_URL')}/login?token=#{raw}"
     private_reply("Link do logowania jest ważny przez 10 minut. Głosy są przypisane do konta Discord.",
-      components: [ { type: 1, components: [ { type: 2, style: 5, label: "Otwórz UV Bingo", url: url } ] } ])
+      components: [ { type: 1, components: [ { type: 2, style: 5, label: "Otwórz TGA Bingo", url: url } ] } ])
   rescue JSON::ParserError, KeyError
     head :bad_request
   rescue ActiveRecord::RecordNotUnique
