@@ -302,6 +302,44 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     assert_equal [ "Pierwsza Osoba", "<b>Druga</b> Osoba" ], fragment.css("#option-#{option.id}-voters li").map(&:text)
   end
 
+  test "search without results offers to add the searched text as a proposal" do
+    @event.options.create!(participant: @voter, text: "Istniejąca propozycja")
+    get event_path(@event), params: { q: "  nowy   pomysł " }
+    assert_select ".empty-card h2", "Brak wyników."
+    assert_select ".empty-card a.empty-add-button[href=?]", sign_in_path
+    assert_select "#search-option-submit", 0
+
+    sign_in_as(@voter)
+    get event_path(@event), params: { q: "  nowy   pomysł " }
+    assert_select ".add-panel", text: /Nowa propozycja otrzyma|Dodane propozycje/, count: 0
+    assert_select ".empty-card form.empty-add-form[action=?][data-voting-kind=search]", event_options_path(@event) do
+      assert_select "input[type=hidden][name=text][value=?]", "nowy pomysł"
+      assert_select "#search-option-submit", /Dodaj „nowy pomysł”/
+    end
+    get state_event_path(@event), params: { q: "nowy pomysł", refresh: "1" }
+    assert_match "search-option-submit", response.parsed_body.dig("voting", "options")
+    assert_difference [ "Option.count", "Vote.count" ], 1 do
+      post event_options_path(@event), params: { text: "nowy pomysł", q: "  nowy   pomysł " }, as: :json
+      assert_response :success
+    end
+    get event_path(@event), params: { q: "  nowy   pomysł " }
+    assert_select ".option-card.selected h2", /\Anowy pomysł/
+    assert_select ".empty-card", 0
+    assert_select "input[type=search][value=?]", "  nowy   pomysł "
+    get state_event_path(@event), params: { q: "  nowy   pomysł ", refresh: "1" }
+    fragment = Nokogiri::HTML5.fragment(response.parsed_body.dig("voting", "options"))
+    assert_equal 1, fragment.css(".option-card.selected").size
+
+    4.times { |i| Voting.cast!(event: @event, participant: @voter, text: "Wypełniam limit #{i}") }
+    get event_path(@event), params: { q: "nic takiego" }
+    assert_select "#search-option-submit", 0
+    assert_select ".empty-card p", "Wykorzystano 5 głosów. Cofnij jeden, aby dodać propozycję."
+    @event.update!(closes_at: 1.second.ago)
+    get event_path(@event), params: { q: "nic takiego" }
+    assert_select ".empty-card p", "Dodawanie propozycji jest dostępne w czasie głosowania."
+    assert_select ".empty-card .empty-add-button", 0
+  end
+
   test "event deletion requires admin access and exact typed confirmation" do
     option = Voting.cast!(event: @event, participant: @voter, text: "Propozycja do usunięcia").option
     get deletion_admin_event_path(@event)
@@ -369,9 +407,12 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     other = seed_options(@event, 1).first
     sign_in_as(@voter)
     get event_path(@event)
-    assert_select ".authored-option-count", text: /20\/20/
+    assert_select ".add-panel .add-option-unavailable", text: /Osiągnięto limit 20 propozycji/
     assert_select ".add-panel textarea", 0
     assert_select "#option-#{other.id} button"
+    get event_path(@event), params: { q: "Brakująca propozycja" }
+    assert_select ".empty-card p", text: /Osiągnięto limit 20 propozycji/
+    assert_select "#search-option-submit", 0
     assert_no_difference [ "Option.count", "Vote.count" ] do
       post event_options_path(@event), params: { text: "Ponad limit" }, as: :json
       assert_response :unprocessable_entity

@@ -24,6 +24,19 @@ module ApplicationHelper
     "#{event.opens_at.in_time_zone.strftime('%d.%m %H:%M')} – #{event.closes_at.in_time_zone.strftime('%d.%m.%Y %H:%M')}"
   end
 
+  # Why the current viewer cannot add a proposal; relies on EventsController#prepare_voting.
+  def add_option_unavailable_message
+    if !current_participant
+      "Zaloguj się, aby dodać propozycję."
+    elsif @authored_option_count >= Option::PER_PARTICIPANT_LIMIT
+      "Osiągnięto limit #{Option::PER_PARTICIPANT_LIMIT} propozycji. Nadal możesz głosować na istniejące propozycje."
+    elsif @remaining.zero? && @event.voting_open?
+      "Wykorzystano 5 głosów. Cofnij jeden, aby dodać propozycję."
+    else
+      "Dodawanie propozycji jest dostępne w czasie głosowania."
+    end
+  end
+
   def admin_time(time)
     time ? time.in_time_zone.strftime("%d.%m.%Y %H:%M") : "—"
   end

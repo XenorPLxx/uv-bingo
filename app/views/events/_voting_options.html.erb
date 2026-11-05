@@ -21,4 +21,26 @@
     </article>
   <% end %>
 </div>
-<% if @options.empty? %><div class="empty-card"><span class="empty-symbol">✦</span><h2><%= @query.present? ? 'Brak wyników.' : 'Brak propozycji.' %></h2><p>Propozycje można dodawać w czasie głosowania.</p></div><% end %>
+<% if @options.empty? %>
+  <div class="empty-card">
+    <span class="empty-symbol">✦</span>
+    <% if @query.present? %>
+      <h2>Brak wyników.</h2>
+      <% if @can_add_option %>
+        <p>Nikt jeszcze tego nie zaproponował.</p>
+        <%= form_with url: event_options_path(@event), class: "empty-add-form", data: { action: "submit->event-status#submit", voting_kind: "search" } do |form| %>
+          <%= form.hidden_field :text, value: @search_text %>
+          <%= form.hidden_field :q, value: @query %>
+          <%= form.button type: "submit", class: "button primary empty-add-button", id: "search-option-submit" do %>Dodaj „<%= @search_text %>” <span class="button-suffix" aria-hidden="true">+1</span><% end %>
+        <% end %>
+      <% elsif @event.voting_open? && !current_participant %>
+        <p>Zaloguj się, aby dodać tę propozycję.</p>
+        <%= link_to "Zaloguj się", sign_in_path, class: "button secondary empty-add-button" %>
+      <% else %>
+        <p><%= add_option_unavailable_message %></p>
+      <% end %>
+    <% else %>
+      <h2>Brak propozycji.</h2><p>Propozycje można dodawać w czasie głosowania.</p>
+    <% end %>
+  </div>
+<% end %>

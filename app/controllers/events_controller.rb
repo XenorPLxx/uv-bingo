@@ -65,7 +65,8 @@ class EventsController < ApplicationController
   def prepare_voting
     @options = @event.options.eligible
     @query = params[:q].to_s.first(100)
-    @options = @options.where("text ILIKE ?", "%#{Option.sanitize_sql_like(@query)}%") if @query.present?
+    @search_text = @query.unicode_normalize(:nfkc).squish
+    @options = @options.where("text ILIKE ?", "%#{Option.sanitize_sql_like(@search_text)}%") if @search_text.present?
     @counts = @event.votes.group(:option_id).count
     # Voter names are visible to signed-in participants only.
     @voters_by_option = current_participant ? @event.voter_names_by_option : {}

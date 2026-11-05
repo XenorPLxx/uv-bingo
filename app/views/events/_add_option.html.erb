@@ -1,6 +1,4 @@
 <h2>Dodaj propozycję</h2>
-<p class="muted">Nowa propozycja otrzyma Twój głos. Cofnięcie go nie usunie propozycji.</p>
-<% if current_participant %><p class="fineprint authored-option-count">Dodane propozycje: <%= @authored_option_count %>/<%= Option::PER_PARTICIPANT_LIMIT %> na to wydarzenie.</p><% end %>
 <% if @can_add_option %>
   <%= form_with url: event_options_path(@event), data: { controller: "option-preview", action: "submit->event-status#submit", voting_kind: "proposal" } do |form| %>
     <%= form.hidden_field :q, value: @query %>
@@ -10,13 +8,5 @@
     <%= form.submit "Dodaj propozycję +1", class: "button secondary wide", id: "new-option-submit" %>
   <% end %>
 <% else %>
-  <p class="fineprint"><%= if !current_participant
-    'Zaloguj się, aby dodać propozycję.'
-  elsif @authored_option_count >= Option::PER_PARTICIPANT_LIMIT
-    "Osiągnięto limit #{Option::PER_PARTICIPANT_LIMIT} propozycji. Nadal możesz głosować na istniejące propozycje."
-  elsif @remaining == 0 && @event.voting_open?
-    'Wykorzystano 5 głosów. Cofnij jeden, aby dodać propozycję.'
-  else
-    'Dodawanie propozycji jest dostępne w czasie głosowania.'
-  end %></p>
+  <p class="fineprint add-option-unavailable"><%= add_option_unavailable_message %></p>
 <% end %>

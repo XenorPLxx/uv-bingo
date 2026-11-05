@@ -296,11 +296,12 @@ class BingoTest < ApplicationSystemTestCase
     other, stale = seed_options(@event, 2)
     browser_sign_in(@voter)
     page.execute_script("window.votingDocument = 'original'")
-    assert_selector ".authored-option-count", text: "19/20"
+    assert_no_text "Dodane propozycje"
+    assert_no_text "Nowa propozycja otrzyma Twój głos"
     fill_in "Twoja propozycja", with: "Moja dwudziesta propozycja"
     click_button "Dodaj propozycję +1"
     assert_selector ".voting-feedback", text: "Propozycja dodana"
-    assert_selector ".authored-option-count", text: "20/20"
+    assert_selector ".add-option-unavailable", text: "Osiągnięto limit 20 propozycji"
     assert_no_field "Twoja propozycja"
     within("#option-#{other.id}") { click_button "Głosuję +1" }
     assert_selector ".ballot-count", text: "2/5"
@@ -308,7 +309,7 @@ class BingoTest < ApplicationSystemTestCase
     find("#ballot-#{own_option.id}-remove").click
     assert_selector ".voting-feedback", text: "Głos cofnięty"
     assert_selector ".ballot-count", text: "1/5"
-    assert_selector ".authored-option-count", text: "20/20"
+    assert_selector ".add-option-unavailable", text: "Osiągnięto limit 20 propozycji"
     assert_no_field "Twoja propozycja"
     assert Option.exists?(own_option.id)
     stale.update!(disqualified_at: Time.current)

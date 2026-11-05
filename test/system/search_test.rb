@@ -88,6 +88,35 @@ class SearchTest < ApplicationSystemTestCase
     page.execute_script("if(window.searchOriginalFetch) window.fetch=window.searchOriginalFetch")
   end
 
+  test "a search without results adds the searched text without touching the sidebar draft" do
+    query = "  Nieistniejący   wynik  Ⅳ  "
+    normalized_text = "Nieistniejący wynik IV"
+    fill_in "Twoja propozycja", with: "Szkic w panelu"
+    fill_in "Szukaj propozycji", with: query
+    assert_selector ".empty-card", text: "Brak wyników."
+    assert_no_selector ".option-card"
+    assert_no_text "Nowa propozycja otrzyma Twój głos"
+    save_screenshot(Rails.root.join("tmp/screenshots/search-empty-desktop.png"))
+    click_button "Dodaj „#{normalized_text}”"
+    assert_selector ".voting-feedback", text: "Propozycja dodana z Twoim głosem. Pozostało: 4 z 5."
+    added = @event.options.find_by!(text: normalized_text)
+    assert_selector ".option-card", count: 1
+    assert_selector "#option-#{added.id}.selected", text: normalized_text
+    assert_no_selector ".empty-card"
+    assert_field "Twoja propozycja", with: "Szkic w panelu"
+    assert_field "Szukaj propozycji", with: query
+    assert_current_path event_path(@event, q: query)
+    assert_equal "original", page.evaluate_script("window.searchDocument")
+
+    mobile_viewport
+    long_query = "Bardzo długa propozycja " * 4
+    fill_in "Szukaj propozycji", with: long_query
+    assert_selector "#search-option-submit", text: long_query.squish
+    assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > innerWidth")
+    page.execute_script("document.querySelector('.empty-card').scrollIntoView({block: 'center', behavior: 'instant'})")
+    save_screenshot(Rails.root.join("tmp/screenshots/search-empty-mobile.png"))
+  end
+
   test "old responses errors and a query changed while voting cannot replace newer search results" do
     page.execute_script(<<~JS)
       window.searchOriginalFetch = window.fetch.bind(window);
