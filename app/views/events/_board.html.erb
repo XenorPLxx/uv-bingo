@@ -2,7 +2,7 @@
 <div class="bingo-grid" aria-label="Plansza bingo 5 na 5" data-controller="fit-text">
   <% @event.cells.includes(:proposals).each do |cell| %>
     <% proposals = cell.current_proposals; mine = proposals.find { |p| p.participant_id == current_participant&.id } %>
-    <article class="bingo-cell mark-<%= cell.mark %> <%= 'center-cell' if cell.position == 12 %> <%= 'winning-cell' if lines.flatten.include?(cell.position) %>" data-position="<%= cell.position %>" aria-label="Pole <%= cell.position + 1 %>: <%= cell.text %>, <%= mark_label(cell.mark) %>">
+    <article class="bingo-cell mark-<%= cell.mark %> <%= 'center-cell' if cell.position == 12 %> <%= 'winning-cell' if lines.flatten.include?(cell.position) %>" data-position="<%= cell.position %>" data-mark="<%= cell.mark %>" aria-label="Pole <%= cell.position + 1 %>: <%= cell.text %>, <%= mark_label(cell.mark) %>">
       <div class="cell-top"><span><%= format('%02d', cell.position + 1) %></span><% if cell.position == 12 %><span class="center-label">NAJWIĘCEJ GŁOSÓW</span><% end %></div>
       <div class="cell-text"><span data-fit-text-target="text"><%= cell.text %></span></div>
       <span class="official-mark" aria-hidden="true"><%= mark_symbol(cell.mark) %></span>
@@ -31,4 +31,4 @@
     </article>
   <% end %>
 </div>
-<% if lines.any? %><div class="bingo-celebration" role="status">✦ BINGO! <span>Ukończone linie: <%= lines.length %></span></div><% end %>
+<% if lines.any? %><div class="bingo-celebration" role="status" data-lines="<%= lines.length %>"><div class="celebration-message">✦ BINGO! <span>Ukończone linie: <%= lines.length %></span></div></div><% end %>

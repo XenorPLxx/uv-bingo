@@ -204,6 +204,19 @@
   .mark-cross { background: #10372f; border-color: #34d39980; }
   .mark-cross .official-mark { color: #6ee7b7; }
   .winning-cell { box-shadow: inset 0 0 0 2px #6ee7b7; }
+  .bingo-cell { --flash: #cbd5e1; overflow: clip; }
+  .bingo-cell.mark-question { --flash: #fbbf24; }
+  .bingo-cell.mark-cross { --flash: #6ee7b7; }
+  .bingo-cell::after { content: ''; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; opacity: 0; box-shadow: inset 0 0 0 2px var(--flash), inset 0 0 40px color-mix(in srgb, var(--flash) 50%, transparent); }
+  .bingo-cell.mark-set::after { animation: cell-flash 2.6s ease-out; }
+  .bingo-cell.mark-set .official-mark { animation: mark-stamp .9s cubic-bezier(.2,.9,.3,1.3) both; }
+  .bingo-cell.mark-cleared::after { animation: cell-flash 1.6s ease-out; }
+  .bingo-cell.mark-cleared .cell-text { animation: text-settle 1s ease-out; }
+  .bingo-cell.win-new { animation: win-sweep 2.8s ease-out var(--win-delay, 0s) both; }
+  .proposal-counts .count-up { animation: counter-up 1.8s ease-out; }
+  .proposal-counts .count-down { animation: counter-down 1.2s ease-out; }
+  .celebration-message { display: inline-block; }
+  .bingo-celebration.celebrate .celebration-message { animation: celebrate 1.4s cubic-bezier(.2,.9,.3,1.3); }
   .board-help { font-size: 15px; color: #919db6; margin: 20px 0; line-height: 1.8; }
   .board-help a { color: #c1a8ff; }
   .bingo-celebration { text-align: center; color: #6ee7b7; padding: 15px; font-size: 20px; font-weight: 800; }
@@ -403,6 +416,29 @@
   .event-list-item { flex-direction: column; align-items: flex-start; gap: 15px; }
   .reveal-page h1 { font-size: 34px; }
   .reveal-controls { flex-direction: column; }
+}
+@keyframes cell-flash { 0%, 25% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes mark-stamp {
+  0% { opacity: 0; transform: scale(2.4) rotate(-14deg); }
+  55% { opacity: .55; transform: scale(.9) rotate(2deg); }
+  100% { opacity: .23; transform: scale(1) rotate(0); }
+}
+@keyframes text-settle { 0% { opacity: .4; } 100% { opacity: 1; } }
+@keyframes win-sweep {
+  0% { box-shadow: inset 0 0 0 2px #6ee7b7, 0 0 0 0 #6ee7b700; }
+  20% { box-shadow: inset 0 0 0 3px #a7f3d0, 0 0 34px 6px #6ee7b780; }
+  100% { box-shadow: inset 0 0 0 2px #6ee7b7, 0 0 0 0 #6ee7b700; }
+}
+@keyframes counter-up {
+  0% { transform: scale(1.25); box-shadow: 0 0 0 2px currentColor, 0 0 18px currentColor; background: color-mix(in srgb, currentColor 30%, transparent); }
+  30% { transform: scale(1); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes counter-down { 0% { opacity: .35; transform: scale(.88); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes celebrate {
+  0% { opacity: 0; transform: scale(.6); }
+  60% { opacity: 1; transform: scale(1.08); }
+  100% { transform: scale(1); }
 }
 @keyframes option-pulse {
   0%, 15% { box-shadow: 0 0 0 1px var(--pulse), 0 0 22px color-mix(in srgb, var(--pulse) 30%, transparent); }

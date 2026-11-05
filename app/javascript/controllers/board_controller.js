@@ -41,7 +41,11 @@ export default class extends Controller {
       if (data.phase !== this.phaseValue) { window.location.reload(); return }
       if (data.revision !== this.revisionValue) {
         const focusedControl = document.activeElement?.dataset.boardControl
-        if (data.html) this.contentTarget.innerHTML = data.html
+        if (data.html) {
+          const before = this.snapshot()
+          this.contentTarget.innerHTML = data.html
+          this.animateChanges(before)
+        }
         if (focusedControl) this.contentTarget.querySelector(`[data-board-control="${focusedControl}"]`)?.focus({ preventScroll: true })
         this.revisionValue = data.revision
         this.phaseValue = data.phase
@@ -79,6 +83,45 @@ export default class extends Controller {
       this.refresh()
     }
   }
+  snapshot() {
+    const cells = new Map(Array.from(this.contentTarget.querySelectorAll(".bingo-cell"), cell => [cell.dataset.position, {
+      mark: cell.dataset.mark,
+      winning: cell.classList.contains("winning-cell"),
+      counts: this.counts(cell)
+    }]))
+    return { cells, lines: Number(this.contentTarget.querySelector(".bingo-celebration")?.dataset.lines || 0) }
+  }
+
+  counts(cell) {
+    return Object.fromEntries(["question", "cross"].map(mark => [mark, Number(cell.querySelector(`.${mark}-count .proposal-total`)?.textContent || 0)]))
+  }
+
+  // Admin decisions stamp the cell, community suggestions pulse their counter and newly completed lines sweep.
+  // The reduced-motion stylesheet turns all of these off.
+  animateChanges(before) {
+    let newlyWinning = 0
+    for (const cell of this.contentTarget.querySelectorAll(".bingo-cell")) {
+      const previous = before.cells.get(cell.dataset.position)
+      if (!previous) continue
+      if (cell.dataset.mark !== previous.mark) {
+        // A decision starts a new cell revision, so the reset suggestion counters are not pulsed.
+        cell.classList.add(cell.dataset.mark === "blank" ? "mark-cleared" : "mark-set")
+      } else {
+        const counts = this.counts(cell)
+        for (const mark of ["question", "cross"]) {
+          if (counts[mark] === previous.counts[mark]) continue
+          cell.querySelector(`.${mark}-count`)?.classList.add(counts[mark] > previous.counts[mark] ? "count-up" : "count-down")
+        }
+      }
+      if (cell.classList.contains("winning-cell") && !previous.winning) {
+        cell.style.setProperty("--win-delay", `${newlyWinning++ * 120}ms`)
+        cell.classList.add("win-new")
+      }
+    }
+    const celebration = this.contentTarget.querySelector(".bingo-celebration")
+    if (celebration && Number(celebration.dataset.lines) > before.lines) celebration.classList.add("celebrate")
+  }
+
   feedback(message, failed = false) {
     if (!this.element.isConnected) return
     clearTimeout(this.feedbackTimer)

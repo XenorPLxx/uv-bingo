@@ -32,6 +32,7 @@ export default class extends Controller {
     clearInterval(this.timer)
     clearTimeout(this.searchTimer)
     clearTimeout(this.pushTimer)
+    this.pushTimer = null
     this.activeSearch = null
     document.removeEventListener("visibilitychange", this.visibility)
     this.request?.abort()
@@ -40,10 +41,12 @@ export default class extends Controller {
     this.consumer?.disconnect()
   }
 
-  // Coalesces bursts of pushes and spreads viewers' requests over a short window.
+  // Folds pushes that arrive while a refresh is scheduled into it, without postponing it,
+  // so a steady stream of votes still refreshes about once a second. The random delay spreads viewers' requests.
   queueRefresh(delay = 200 + Math.random() * 800) {
-    clearTimeout(this.pushTimer)
+    if (!this.element.isConnected || this.pushTimer) return
     this.pushTimer = setTimeout(async () => {
+      this.pushTimer = null
       if (!(await this.refresh())) this.queueRefresh(2000)
     }, delay)
   }

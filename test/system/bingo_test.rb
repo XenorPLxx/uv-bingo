@@ -292,6 +292,98 @@ class BingoTest < ApplicationSystemTestCase
       save_screenshot(Rails.root.join("tmp/screenshots/presentation.png"))
     end
   end
+  test "board viewers see suggestions pulse, decisions stamp and completed lines sweep" do
+    seed_options(@event, 25)
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: @voter)
+    @event.update!(state: "live")
+    suggester = create_participant
+    cell = ->(position) { @event.cells.find_by!(position: position) }
+    publish = -> { @event.reload.broadcast_update! }
+    visit presentation_event_path(@event)
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "no-preference" } ])
+    assert_text "POŁĄCZONO NA ŻYWO"
+    assert_no_selector "[class*=count-up], .mark-set, .win-new"
+
+    BoardActions.propose!(cell: cell[0], participant: suggester, mark: "question", revision: 0)
+    publish.call
+    assert_selector '[data-position="0"] .question-count.count-up', text: "1"
+    BoardActions.propose!(cell: cell[0], participant: suggester, mark: "blank", revision: 0)
+    publish.call
+    assert_selector '[data-position="0"] .question-count.count-down', text: "0"
+
+    BoardActions.mark!(cell: cell[0], admin: @voter, mark: "cross", revision: 0)
+    publish.call
+    assert_selector '[data-position="0"].mark-cross.mark-set'
+    assert_no_selector '[data-position="0"] .count-down, [data-position="0"] .count-up'
+    assert_equal "mark-stamp", page.evaluate_script("getComputedStyle(document.querySelector('[data-position=\"0\"] .official-mark')).animationName")
+
+    (1..4).each { |position| BoardActions.mark!(cell: cell[position], admin: @voter, mark: "cross", revision: 0) }
+    publish.call
+    assert_selector ".bingo-cell.win-new", count: 5
+    assert_selector ".bingo-celebration.celebrate", text: "Ukończone linie: 1"
+    save_screenshot(Rails.root.join("tmp/screenshots/board-line-animation.png"))
+
+    BoardActions.mark!(cell: cell[4], admin: @voter, mark: "blank", revision: 1)
+    publish.call
+    assert_selector '[data-position="4"].mark-blank.mark-cleared'
+    assert_no_selector ".bingo-celebration"
+
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "reduce" } ])
+    BoardActions.mark!(cell: cell[5], admin: @voter, mark: "question", revision: 0)
+    publish.call
+    assert_selector '[data-position="5"].mark-set'
+    assert_equal "none", page.evaluate_script("getComputedStyle(document.querySelector('[data-position=\"5\"] .official-mark')).animationName")
+  end
+
+  test "edge stamps and celebrations keep the board scroll area fixed" do
+    desktop_viewport(width: 1920, height: 1080)
+    seed_options(@event, 25)
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: @voter)
+    @event.update!(state: "live")
+    visit presentation_event_path(@event)
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "no-preference" } ])
+    assert_text "POŁĄCZONO NA ŻYWO"
+    before = page.evaluate_script("(() => { const el = document.querySelector('[data-board-target=content]'); return [el.scrollWidth, el.scrollHeight] })()")
+    BoardActions.mark!(cell: @event.cells.find_by!(position: 24), admin: @voter, mark: "cross", revision: 0)
+    @event.reload.broadcast_update!
+    assert_selector '[data-position="24"].mark-set'
+    page.execute_script("document.querySelector('[data-position=\"24\"] .official-mark').getAnimations().forEach(a => { a.pause(); a.currentTime = 0; })")
+    after = page.evaluate_script("(() => { const el = document.querySelector('[data-board-target=content]'); return [el.scrollWidth, el.scrollHeight] })()")
+    save_screenshot(Rails.root.join("tmp/screenshots/edge-stamp-probe.png"))
+    assert_equal before, after, "Stamp animation must not add scrollbars"
+
+    visit event_path(@event)
+    assert_text "POŁĄCZONO NA ŻYWO"
+    (20..23).each { |position| BoardActions.mark!(cell: @event.cells.find_by!(position: position), admin: @voter, mark: "cross", revision: 0) }
+    @event.reload.broadcast_update!
+    assert_selector ".bingo-celebration.celebrate"
+    page.execute_script("document.querySelector('.celebration-message').getAnimations().forEach(a => { a.pause(); a.currentTime = 840; })")
+    bounds = page.evaluate_script("(() => { const el = document.querySelector('[data-board-target=content]'); return { client: [el.clientWidth, el.clientHeight], scroll: [el.scrollWidth, el.scrollHeight] } })()")
+    assert_equal bounds["client"], bounds["scroll"], "Celebration must not add scrollbars"
+  end
+
+  test "voting refresh can be scheduled after controller reconnects" do
+    option = seed_options(@event, 1).first
+    visit event_path(@event)
+    wait = Selenium::WebDriver::Wait.new(timeout: 5)
+    wait.until { page.evaluate_script("(() => { const c = window.Stimulus.getControllerForElementAndIdentifier(document.querySelector('.voting-shell'), 'event-status'); return c?.online && !c.pushTimer && !c.refreshPromise })()") }
+    page.execute_script(<<~JS)
+      window.detachedShell = document.querySelector('.voting-shell');
+      window.shellParent = detachedShell.parentNode;
+      window.shellNext = detachedShell.nextSibling;
+      window.votingController = window.Stimulus.getControllerForElementAndIdentifier(detachedShell, 'event-status');
+      votingController.queueRefresh(10000);
+      detachedShell.remove();
+    JS
+    wait.until { page.evaluate_script("!window.Stimulus.getControllerForElementAndIdentifier(detachedShell, 'event-status')") }
+    page.execute_script("shellParent.insertBefore(detachedShell, shellNext)")
+    wait.until { page.evaluate_script("window.Stimulus.getControllerForElementAndIdentifier(detachedShell, 'event-status')?.online") }
+    Voting.cast!(event: @event, participant: @voter, option_id: option.id)
+    assert_selector "#option-#{option.id} .option-count", text: "2", wait: 5
+  end
+
   test "admin can review and delete a drawn event and live viewers leave the deleted board" do
     ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
     seed_options(@event, 25)
