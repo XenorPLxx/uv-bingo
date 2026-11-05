@@ -1,0 +1,13 @@
+<h2>Dodaj propozycję</h2>
+<p class="muted">Nowa propozycja otrzyma Twój głos. Cofnięcie go nie usunie propozycji.</p>
+<% if @event.voting_open? && current_participant && @remaining.positive? %>
+  <%= form_with url: event_options_path(@event), data: { controller: "option-preview", action: "submit->event-status#submit", voting_kind: "proposal" } do |form| %>
+    <%= form.hidden_field :q, value: @query %>
+    <%= form.label :text, "Twoja propozycja", class: "sr-only" %><%= form.text_area :text, maxlength: 100, required: true, rows: 3, placeholder: "Np. nowy zwiastun Wiedźmina IV", data: { action: "input->option-preview#update", option_preview_target: "input" } %>
+    <div class="input-meta"><span>Maksymalnie 100 znaków.</span><span data-option-preview-target="count">0/100</span></div>
+    <details class="preview-details"><summary>Podgląd pola</summary><div class="tile-preview" data-option-preview-target="preview">Podgląd propozycji</div></details>
+    <%= form.submit "Dodaj propozycję +1", class: "button secondary wide", id: "new-option-submit" %>
+  <% end %>
+<% else %>
+  <p class="fineprint"><%= !current_participant ? 'Zaloguj się, aby dodać propozycję.' : @remaining == 0 && @event.voting_open? ? 'Wykorzystano 5 głosów. Cofnij jeden, aby dodać propozycję.' : 'Dodawanie propozycji jest dostępne w czasie głosowania.' %></p>
+<% end %>

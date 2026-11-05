@@ -142,6 +142,61 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "voting responds without redirects and returns refreshed filtered voting fragments" do
+    options = seed_options(@event, 6)
+    post event_votes_path(@event), params: { option_id: options.first.id }, as: :json
+    assert_response :unauthorized
+    sign_in_as(@voter)
+    previous_revision = @event.reload.revision
+    post event_votes_path(@event), params: { option_id: options.last.id }, as: :json
+    assert_response :success
+    assert_match "Głos zapisany", response.parsed_body.fetch("message")
+    get state_event_path(@event), params: { revision: previous_revision, phase: "open", q: "numer 6" }
+    assert_response :success
+    fragments = response.parsed_body.fetch("voting")
+    rows = Nokogiri::HTML.fragment(fragments.fetch("options"))
+    assert_equal [ "option-#{options.last.id}" ], rows.css(".option-card").map { |row| row["id"] }
+    assert rows.at_css(".option-card.selected")
+    assert_equal "2", rows.at_css(".option-count").text
+    assert_includes fragments.fetch("ballot"), "1<small>/5</small>"
+    assert_equal true, fragments.fetch("can_add")
+    assert_equal 6, fragments.fetch("option_count")
+    current_revision = response.parsed_body.fetch("revision")
+    get state_event_path(@event), params: { revision: current_revision, phase: "open" }
+    assert_nil response.parsed_body["voting"]
+    get state_event_path(@event), params: { revision: current_revision, phase: "open", refresh: "1" }
+    assert response.parsed_body["voting"]
+    options.first(4).each { |option| Voting.cast!(event: @event, participant: @voter, option_id: option.id) }
+    assert_no_difference "Vote.count" do
+      post event_votes_path(@event), params: { option_id: options[4].id }, as: :json
+      assert_response :unprocessable_entity
+      assert response.parsed_body.fetch("error").present?
+    end
+    delete event_vote_path(@event, @voter.votes.first), as: :json
+    assert_response :success
+    assert_match "Głos cofnięty", response.parsed_body.fetch("message")
+    post event_options_path(@event), params: { text: "Nowa propozycja bez przeładowania" }, as: :json
+    assert_response :success
+    assert_match "Propozycja dodana", response.parsed_body.fetch("message")
+  end
+
+  test "HTML voting fallback puts notices and errors above proposals and retains search" do
+    option = seed_options(@event, 1).first
+    sign_in_as(@voter)
+    post event_votes_path(@event), params: { option_id: option.id, q: "numer" }
+    assert_redirected_to event_path(@event, q: "numer", anchor: "options")
+    follow_redirect!
+    assert_select ".voting-feedback .flash.notice", text: /Głos zapisany/
+    assert_select ".page-container > .flash", 0
+    @event.update!(closes_at: 1.second.ago)
+    delete event_vote_path(@event, @voter.votes.first), params: { q: "numer" }
+    assert_redirected_to event_path(@event, q: "numer", anchor: "options")
+    follow_redirect!
+    assert_select ".voting-feedback .flash.alert"
+    assert_select ".page-container > .flash", 0
+    assert_equal 1, @voter.votes.count
+  end
+
   test "only admins can merge options and merged sources cannot be restored or drawn" do
     source, target = seed_options(@event, 2)
     Voting.cast!(event: @event, participant: @voter, option_id: source.id)

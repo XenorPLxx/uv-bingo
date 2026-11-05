@@ -12,54 +12,26 @@
       <div class="hero-actions"><a href="#options" class="button primary">Zobacz propozycje <span aria-hidden="true">↗</span></a></div>
     </div>
   </section>
-  <div class="event-strip" data-controller="countdown" data-countdown-opens-value="<%= @event.opens_at.iso8601 %>" data-countdown-closes-value="<%= @event.closes_at.iso8601 %>">
-    <div><span class="status-dot <%= @event.phase == 'open' ? 'active' : '' %>"></span><strong><%= phase_label(@event.phase) %></strong><% if @event.rehearsal? %><span class="tag">WYDARZENIE TESTOWE</span><% end %></div>
-    <span data-countdown-target="label"><%= voting_schedule(@event) %></span>
-  </div>
-  <div class="voting-layout" id="options" data-controller="event-status" data-event-status-url-value="<%= state_event_path(@event) %>" data-event-status-phase-value="<%= @event.phase %>" data-event-status-revision-value="<%= @event.revision %>">
-    <section class="options-section">
-      <div class="section-title"><div><h2>Propozycje<span class="count-badge"><%= @event.options.eligible.count %></span></h2></div></div>
-      <% if @event.description.present? %><p class="section-description"><%= @event.description %></p><% end %>
-      <%= form_with url: event_path(@event), method: :get, class: "search-form" do |form| %>
-        <%= form.label :q, "Szukaj propozycji", class: "sr-only" %><span aria-hidden="true">⌕</span><%= form.search_field :q, value: @query, placeholder: "Szukaj propozycji…", maxlength: 100 %><%= form.submit "Szukaj", class: "search-button" %>
-      <% end %>
-      <div class="options-list" role="list">
-        <% @options.each do |option| %>
-          <% vote = @votes_by_option[option.id]; voted = vote.present? %>
-          <article class="option-card <%= 'selected' if voted %>" id="option-<%= option.id %>" role="listitem">
-            <span class="option-count" aria-label="Liczba głosów: <%= @counts.fetch(option.id, 0) %>" title="Liczba głosów"><%= @counts.fetch(option.id, 0) %></span>
-            <h3><%= option.text %><% if voted %><span class="sr-only"> (Twój głos)</span><% end %></h3>
-            <div class="option-bottom">
-              <% if voted && @event.voting_open? %><%= button_to "Cofnij głos", event_vote_path(@event, vote), method: :delete, class: "button vote-button withdraw-button" %>
-              <% elsif voted %><span class="voted-label">Twój głos ✓</span>
-              <% elsif @event.voting_open? && current_participant && @remaining.positive? %>
-                <%= button_to "Głosuję +1", event_votes_path(@event), params: { option_id: option.id }, class: "button vote-button" %>
-              <% elsif @event.voting_open? && !current_participant %><%= link_to "Głosuję +1", sign_in_path, class: "button vote-button" %>
-              <% else %><span class="muted"><%= @remaining == 0 ? 'Limit wykorzystany' : 'Głosowanie nieaktywne' %></span><% end %>
-            </div>
-          </article>
+  <div class="voting-shell" data-controller="event-status" data-event-status-url-value="<%= state_event_path(@event, q: @query.presence) %>" data-event-status-phase-value="<%= @event.phase %>" data-event-status-revision-value="<%= @event.revision %>">
+    <div data-event-status-target="schedule"><%= render "events/voting_schedule" %></div>
+    <div class="voting-layout" id="options">
+      <section class="options-section">
+        <div class="voting-feedback" data-event-status-target="feedback" role="status" aria-live="polite" aria-atomic="true"><% %w[voting_notice voting_alert].each do |type| %><% if flash[type] %><div class="flash <%= type == 'voting_alert' ? 'alert' : 'notice' %>"><%= flash[type] %></div><% end %><% end %></div>
+        <div class="section-title"><div><h2>Propozycje<span class="count-badge" data-event-status-target="optionCount"><%= @event.options.eligible.count %></span></h2></div></div>
+        <% if @event.description.present? %><p class="section-description"><%= @event.description %></p><% end %>
+        <%= form_with url: event_path(@event), method: :get, class: "search-form" do |form| %>
+          <%= form.label :q, "Szukaj propozycji", class: "sr-only" %><span aria-hidden="true">⌕</span><%= form.search_field :q, value: @query, placeholder: "Szukaj propozycji…", maxlength: 100 %><%= form.submit "Szukaj", class: "search-button" %>
         <% end %>
-      </div>
-      <% if @options.empty? %><div class="empty-card"><span class="empty-symbol">✦</span><h3><%= @query.present? ? 'Brak wyników.' : 'Brak propozycji.' %></h3><p>Propozycje można dodawać w czasie głosowania.</p></div><% end %>
-    </section>
-    <aside class="voting-sidebar">
-      <section class="panel ballot-panel">
-        <div class="panel-heading"><h2>Twoje głosy</h2><span class="ballot-count"><%= current_participant ? 5 - @remaining : 0 %><small>/5</small></span></div>
-        <p class="muted">Maksymalnie 5 różnych propozycji. Głos możesz cofnąć do końca głosowania.</p>
-        <ol class="ballot-slots"><% 5.times do |slot| %><% vote = @my_votes&.[](slot) %><li class="<%= 'filled' if vote %>"><span><%= vote ? '✓' : format('%02d', slot + 1) %></span><span class="ballot-text"><%= vote ? vote.option.text : 'Niewykorzystany głos' %></span><% if vote && @event.voting_open? %><%= button_to "×", event_vote_path(@event, vote), method: :delete, class: "ballot-remove", aria: { label: "Cofnij głos: #{vote.option.text}" } %><% end %></li><% end %></ol>
-        <% unless current_participant %><%= link_to "Zaloguj się", sign_in_path, class: "button primary wide" %><% end %>
+        <div data-event-status-target="options"><%= render "events/voting_options" %></div>
       </section>
-      <section class="panel add-panel"><h2>Dodaj propozycję</h2><p class="muted">Nowa propozycja otrzyma Twój głos. Cofnięcie go nie usunie propozycji.</p>
-        <% if @event.voting_open? && current_participant && @remaining.positive? %>
-          <%= form_with url: event_options_path(@event), data: { controller: "option-preview" } do |form| %>
-            <%= form.label :text, "Twoja propozycja", class: "sr-only" %><%= form.text_area :text, maxlength: 100, required: true, rows: 3, placeholder: "Np. nowy zwiastun Wiedźmina IV", data: { action: "input->option-preview#update", option_preview_target: "input" } %>
-            <div class="input-meta"><span>Maksymalnie 100 znaków.</span><span data-option-preview-target="count">0/100</span></div>
-            <details class="preview-details"><summary>Podgląd pola</summary><div class="tile-preview" data-option-preview-target="preview">Podgląd propozycji</div></details>
-            <%= form.submit "Dodaj propozycję +1", class: "button secondary wide" %>
-          <% end %>
-          <% else %><p class="fineprint"><%= !current_participant ? 'Zaloguj się, aby dodać propozycję.' : @remaining == 0 && @event.voting_open? ? 'Wykorzystano 5 głosów. Cofnij jeden, aby dodać propozycję.' : 'Dodawanie propozycji jest dostępne w czasie głosowania.' %></p><% end %>
-      </section>
-      <div class="how-it-works"><h2>Tworzenie planszy</h2><p>Na planszę trafi 25 propozycji z największą liczbą głosów. Pierwsza zajmie środek, a pozostałe pola zostaną rozmieszczone losowo. Remisy rozstrzyga losowanie.</p></div>
-    </aside>
+      <aside class="voting-sidebar" data-event-status-target="sidebar">
+        <section class="panel ballot-panel" data-event-status-target="ballot">
+          <%= render "events/ballot" %>
+        </section>
+        <section class="panel add-panel" data-event-status-target="addOption"><%= render "events/add_option" %>
+        </section>
+        <div class="how-it-works"><h2>Tworzenie planszy</h2><p>Na planszę trafi 25 propozycji z największą liczbą głosów. Pierwsza zajmie środek, a pozostałe pola zostaną rozmieszczone losowo. Remisy rozstrzyga losowanie.</p></div>
+      </aside>
+    </div>
   </div>
 <% end %>

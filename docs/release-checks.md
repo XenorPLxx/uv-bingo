@@ -69,3 +69,9 @@ These are clearly labeled test events. Production has configuration only and has
 - Event-scoped cleanup runs under the event lock in one transaction, including merged proposals and immutable draw/audit records. Other events, participant accounts, sessions and login tokens remain. Deleted-board viewers return to the homepage with an explanation.
 - Renamed the rehearsal checkbox and public badge to **Wydarzenie testowe**. The creation form explains that it is a visible label only: these events are public and follow the same voting and drawing rules. It does not seed example data.
 - Application suite: 44 tests / 359 assertions. Chrome suite: 4 tests / 65 assertions. Coverage includes typed confirmation, permissions, scoped cleanup, rollback and live viewer navigation after deletion. RuboCop passes; Brakeman reports no warnings. A staging database backup was taken before deployment.
+
+## Voting without page jumps — 5 November 2026
+
+- Voting, withdrawals and proposal submissions update the proposal list, ballot and available allowance in place. Success and error messages appear immediately above **Propozycje**, including the HTML fallback. Search filters remain active.
+- Background revision updates replace voting fragments instead of navigating. Viewport anchoring keeps neighbouring proposals steady when the sorted order changes. Desktop sidebar scroll and unfinished proposal text are retained, including when the five-vote limit temporarily removes the proposal form.
+- Application suite: 46 tests / 398 assertions. Chrome suite: 5 tests / 93 assertions. Coverage includes desktop/mobile scroll position, no navigation, background sorting, sidebar scroll, draft/preview restoration, JSON validation errors and local HTML messages. RuboCop passes; Brakeman reports no warnings. No database migration is required.

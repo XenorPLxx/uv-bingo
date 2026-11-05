@@ -1,0 +1,18 @@
+<div class="options-list" role="list">
+  <% @options.each do |option| %>
+    <% vote = @votes_by_option[option.id]; voted = vote.present? %>
+    <article class="option-card <%= 'selected' if voted %>" id="option-<%= option.id %>" role="listitem">
+      <span class="option-count" aria-label="Liczba głosów: <%= @counts.fetch(option.id, 0) %>" title="Liczba głosów"><%= @counts.fetch(option.id, 0) %></span>
+      <h3><%= option.text %><% if voted %><span class="sr-only"> (Twój głos)</span><% end %></h3>
+      <div class="option-bottom">
+        <% if voted && @event.voting_open? %><%= button_to "Cofnij głos", event_vote_path(@event, vote), method: :delete, params: { q: @query.presence }, class: "button vote-button withdraw-button", id: "option-#{option.id}-vote", form: { data: { action: "submit->event-status#submit", option_id: option.id } } %>
+        <% elsif voted %><span class="voted-label">Twój głos ✓</span>
+        <% elsif @event.voting_open? && current_participant && @remaining.positive? %>
+          <%= button_to "Głosuję +1", event_votes_path(@event), params: { option_id: option.id, q: @query.presence }, class: "button vote-button", id: "option-#{option.id}-vote", form: { data: { action: "submit->event-status#submit", option_id: option.id } } %>
+        <% elsif @event.voting_open? && !current_participant %><%= link_to "Głosuję +1", sign_in_path, class: "button vote-button" %>
+        <% else %><span class="muted"><%= @remaining == 0 ? 'Limit wykorzystany' : 'Głosowanie nieaktywne' %></span><% end %>
+      </div>
+    </article>
+  <% end %>
+</div>
+<% if @options.empty? %><div class="empty-card"><span class="empty-symbol">✦</span><h3><%= @query.present? ? 'Brak wyników.' : 'Brak propozycji.' %></h3><p>Propozycje można dodawać w czasie głosowania.</p></div><% end %>

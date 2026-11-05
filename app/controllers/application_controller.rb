@@ -37,9 +37,26 @@ class ApplicationController < ActionController::Base
   def invalid_action(error)
     respond_to do |format|
       format.json { render json: { error: error.message }, status: :unprocessable_entity }
-      format.html { redirect_to(@event&.persisted? ? board_return_path : root_path, alert: error.message, status: :see_other) }
+      format.html do
+        if voting_request? && @event&.persisted?
+          redirect_to voting_return_path, flash: { voting_alert: error.message }, status: :see_other
+        else
+          redirect_to(@event&.persisted? ? board_return_path : root_path, alert: error.message, status: :see_other)
+        end
+      end
     end
   end
+
+  def voting_action_response(message)
+    respond_to do |format|
+      format.json { render json: { message: message } }
+      format.html { redirect_to voting_return_path, flash: { voting_notice: message }, status: :see_other }
+    end
+  end
+
+  def voting_request? = %w[votes options].include?(controller_path)
+
+  def voting_return_path = event_path(@event, q: params[:q].presence, anchor: "options")
 
   def board_action_response(message)
     respond_to do |format|
@@ -53,6 +70,6 @@ class ApplicationController < ActionController::Base
   end
 
   def duplicate_action
-    redirect_to(@event&.persisted? ? event_path(@event) : root_path, alert: "Ta propozycja lub głos już istnieje. Nie pobrano dodatkowego głosu.", status: :see_other)
+    invalid_action(Voting::Invalid.new("Ta propozycja lub głos już istnieje. Nie pobrano dodatkowego głosu."))
   end
 end

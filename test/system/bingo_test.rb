@@ -21,6 +21,7 @@ class BingoTest < ApplicationSystemTestCase
     click_button "Dodaj propozycję +1"
     assert_text "Propozycja dodana z Twoim głosem"
     options.first(4).each_with_index do |option, index|
+      fill_in "Twoja propozycja", with: "Zachowany szkic" if index == 3
       within("#option-#{option.id}") { click_button "Głosuję +1" }
       assert_text "Głos zapisany. Pozostało: #{3 - index} z 5."
       assert_selector "#option-#{option.id}.selected"
@@ -34,6 +35,8 @@ class BingoTest < ApplicationSystemTestCase
     assert_text own_option.text
     assert_equal 0, own_option.votes.count
     assert_selector ".ballot-count", text: "4/5"
+    assert_field "Twoja propozycja", with: "Zachowany szkic"
+    assert_selector "[data-option-preview-target=count]", text: "15/100"
     within("#option-#{own_option.id}") { click_button "Głosuję +1" }
     assert_text "Głos zapisany. Pozostało: 0 z 5."
     assert_equal 5, @voter.votes.count
@@ -73,6 +76,55 @@ class BingoTest < ApplicationSystemTestCase
       first(:button, "Głosuję +1").click
       assert_text "Głos zapisany. Pozostało: 3 z 5."
     end
+  end
+
+  test "voting and background sorting preserve the visible list sidebar and draft" do
+    options = seed_options(@event, 30)
+    browser_sign_in(@voter)
+    visit event_path(@event)
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [ { name: "prefers-reduced-motion", value: "reduce" } ])
+    fill_in "Twoja propozycja", with: "Niedokończona propozycja"
+    page.execute_script("window.votingDocument = 'original'; document.activeElement.blur()")
+    page.execute_script("document.getElementById('option-#{options[16].id}').scrollIntoView({block: 'center', behavior: 'instant'}); document.querySelector('.voting-sidebar').scrollTop = 100")
+    anchor = "#option-#{options[17].id}"
+    before = voting_viewport(anchor)
+    within("#option-#{options[16].id}") { click_button "Głosuję +1" }
+    assert_selector ".voting-feedback", text: "Głos zapisany. Pozostało: 4 z 5."
+    assert_selector "#option-#{options[16].id}.selected"
+    assert_voting_viewport before, anchor
+    assert_field "Twoja propozycja", with: "Niedokończona propozycja"
+    assert_current_path event_path(@event)
+    assert_equal "original", page.evaluate_script("window.votingDocument")
+    assert_no_selector ".page-container > .flash"
+
+    Voting.cast!(event: @event, participant: create_participant, option_id: options[25].id)
+    page.execute_script("window.Stimulus.getControllerForElementAndIdentifier(document.querySelector('.voting-shell'), 'event-status').refresh()")
+    assert_selector "#option-#{options[25].id} .option-count", text: "2"
+    assert_voting_viewport before, anchor
+    assert_equal "original", page.evaluate_script("window.votingDocument")
+
+    page.execute_script("document.getElementById('option-#{options[16].id}').scrollIntoView({block: 'center', behavior: 'instant'})")
+    withdrawal_anchor = "#option-#{options[25].id}"
+    before = voting_viewport(withdrawal_anchor)
+    within("#option-#{options[16].id}") { click_button "Cofnij głos" }
+    assert_selector ".voting-feedback", text: "Głos cofnięty. Propozycja zostaje. Pozostało: 5 z 5."
+    assert_voting_viewport before, withdrawal_anchor
+    assert_current_path event_path(@event)
+    assert_field "Twoja propozycja", with: "Niedokończona propozycja"
+    assert_equal "original", page.evaluate_script("window.votingDocument")
+    save_screenshot(Rails.root.join("tmp/screenshots/voting-in-place.png"))
+    page.current_window.resize_to(390, 844)
+    page.execute_script("document.getElementById('option-#{options[18].id}').scrollIntoView({block: 'center', behavior: 'instant'})")
+    mobile_anchor = "#option-#{options[19].id}"
+    before = voting_viewport(mobile_anchor)
+    within("#option-#{options[18].id}") { click_button "Głosuję +1" }
+    assert_selector ".voting-feedback", text: "Głos zapisany. Pozostało: 4 z 5."
+    assert_selector "#option-#{options[18].id}.selected"
+    assert_voting_viewport before, mobile_anchor
+    assert_current_path event_path(@event)
+    assert_equal "original", page.evaluate_script("window.votingDocument")
+    assert_equal false, page.evaluate_script("document.documentElement.scrollWidth > window.innerWidth")
+    save_screenshot(Rails.root.join("tmp/screenshots/voting-in-place-mobile.png"))
   end
 
   test "inline proposals and admin decisions update other viewers from both board views" do
@@ -154,6 +206,16 @@ class BingoTest < ApplicationSystemTestCase
   end
 
   private
+
+  def voting_viewport(selector)
+    page.evaluate_script("({top: document.querySelector('#{selector}').getBoundingClientRect().top, sidebar: document.querySelector('.voting-sidebar').scrollTop})")
+  end
+
+  def assert_voting_viewport(before, selector)
+    after = voting_viewport(selector)
+    assert_in_delta before.fetch("top"), after.fetch("top"), 2, "The visible proposals should not jump"
+    assert_in_delta before.fetch("sidebar"), after.fetch("sidebar"), 2, "Sidebar scroll should be retained"
+  end
 
   def assert_board_text_fits
     fits = Selenium::WebDriver::Wait.new(timeout: 5).until do

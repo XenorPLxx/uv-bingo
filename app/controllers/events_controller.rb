@@ -35,6 +35,16 @@ class EventsController < ApplicationController
     if @event.draw
       @presentation = params[:presentation] == "1"
       data[:html] = render_to_string(partial: "events/board", formats: [ :html ])
+    elsif params[:refresh] == "1" || params[:revision] != @event.revision.to_s || params[:phase] != @event.phase
+      prepare_voting
+      data[:voting] = {
+        options: render_to_string(partial: "events/voting_options", formats: [ :html ]),
+        ballot: render_to_string(partial: "events/ballot", formats: [ :html ]),
+        add_option: render_to_string(partial: "events/add_option", formats: [ :html ]),
+        schedule: render_to_string(partial: "events/voting_schedule", formats: [ :html ]),
+        can_add: @event.voting_open? && current_participant.present? && @remaining.positive?,
+        option_count: @event.options.eligible.count
+      }
     end
     render json: data
   end
@@ -49,6 +59,10 @@ class EventsController < ApplicationController
 
   def prepare_event
     @events = Event.includes(:draw).order(created_at: :desc)
+    prepare_voting
+  end
+
+  def prepare_voting
     @options = @event.options.eligible
     @query = params[:q].to_s.first(100)
     @options = @options.where("text ILIKE ?", "%#{Option.sanitize_sql_like(@query)}%") if @query.present?
