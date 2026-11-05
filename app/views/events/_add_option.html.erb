@@ -13,7 +13,7 @@
   <p class="fineprint"><%= if !current_participant
     'Zaloguj się, aby dodać propozycję.'
   elsif @authored_option_count >= Option::PER_PARTICIPANT_LIMIT
-    'Osiągnięto limit 20 propozycji. Nadal możesz głosować na istniejące propozycje.'
+    "Osiągnięto limit #{Option::PER_PARTICIPANT_LIMIT} propozycji. Nadal możesz głosować na istniejące propozycje."
   elsif @remaining == 0 && @event.voting_open?
     'Wykorzystano 5 głosów. Cofnij jeden, aby dodać propozycję.'
   else
