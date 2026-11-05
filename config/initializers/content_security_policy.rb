@@ -14,5 +14,6 @@ Rails.application.configure do
     policy.frame_ancestors :none
   end
   config.content_security_policy_nonce_generator = ->(_request) { SecureRandom.base64(16) }
-  config.content_security_policy_nonce_directives = %w[script-src]
+  # Turbo's loading bar inserts a nonce-bearing stylesheet during navigation.
+  config.content_security_policy_nonce_directives = %w[script-src style-src]
 end

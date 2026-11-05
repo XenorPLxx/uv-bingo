@@ -233,8 +233,10 @@ class BingoTest < ApplicationSystemTestCase
     assert_equal record, draw.reload.attributes
     assert_equal draw.result, @event.cells.order(:position).pluck(:option_id)
     assert_equal 1, @event.audit_entries.where(action: "draw").count
+    page.execute_script("window.Turbo.config.drive.progressBarDelay = 0")
     click_link "Przejdź do planszy →"
     assert_selector ".bingo-cell", count: 25
+    assert_equal true, page.evaluate_script("Array.from(document.querySelectorAll('style')).some(style => style.textContent.includes('.turbo-progress-bar') && style.nonce.length > 0)")
     assert_empty page.evaluate_script("window.cspViolations")
   end
 

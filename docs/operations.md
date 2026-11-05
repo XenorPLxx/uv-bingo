@@ -65,7 +65,7 @@ Rollback changes the app image, not the database. Future schema migrations must 
 
 Clients resync on reconnect, when the tab becomes visible, and every 15 seconds. Polls send the current phase and revision; unchanged boards return only those values without rendering HTML. Responses remain uncached. Failed broadcasts don't undo committed marks. A visible status explains lost connectivity; no write is queued offline. Public streams carry only change notifications; personalized HTML is fetched through normal authorized sessions. Voting refreshes preserve list position, sidebar scroll and unfinished proposal text; server-side revision checks reject stale board writes.
 
-The content security policy permits local assets, nonce-authorized importmap scripts and the current host's WebSocket endpoint. It blocks inline script attributes, plugins and embedding in other sites. Policy configuration follows the [Rails security guide](https://guides.rubyonrails.org/security.html#content-security-policy-header). A missing Discord `APP_URL` logs a configuration error and returns a private unavailable message before issuing a login token.
+The content security policy permits local assets, nonce-authorized importmap scripts/Turbo loading-bar styles and the current host's WebSocket endpoint. It blocks inline script attributes, plugins and embedding in other sites. Policy configuration follows the [Rails security guide](https://guides.rubyonrails.org/security.html#content-security-policy-header). A missing Discord `APP_URL` logs a configuration error and returns a private unavailable message before issuing a login token.
 
 ## Production preparation
 

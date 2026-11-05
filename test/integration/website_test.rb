@@ -381,7 +381,7 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     assert nonce.present?
     assert_includes header, "script-src 'self' 'nonce-#{nonce}'"
     assert_includes header, "script-src-attr 'none'"
-    assert_includes header, "style-src 'self'"
+    assert_includes header, "style-src 'self' 'nonce-#{nonce}'"
     assert_includes header, "connect-src 'self' ws://www.example.com"
     assert_includes header, "object-src 'none'"
     assert_includes header, "frame-ancestors 'none'"
