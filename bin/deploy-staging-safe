@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+bin/kamal-staging deploy "$@"
+bin/kamal-staging app exec --reuse "bin/rails db:abort_if_pending_migrations"
+bin/check-staging-health

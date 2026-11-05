@@ -1,0 +1,23 @@
+<% lines = @event.completed_lines %>
+<div class="bingo-grid" aria-label="Plansza bingo 5 na 5">
+  <% @event.cells.includes(:proposals).each do |cell| %>
+    <% proposals = cell.current_proposals; mine = proposals.find { |p| p.participant_id == current_participant&.id } %>
+    <article class="bingo-cell mark-<%= cell.mark %> <%= 'center-cell' if cell.position == 12 %> <%= 'winning-cell' if lines.flatten.include?(cell.position) %>" data-position="<%= cell.position %>" aria-label="Pole <%= cell.position + 1 %>: <%= cell.text %>, <%= mark_label(cell.mark) %>">
+      <div class="cell-top"><span><%= format('%02d', cell.position + 1) %></span><% if cell.position == 12 %><span class="center-label">TYP SPOŁECZNOŚCI ✦</span><% end %></div>
+      <div class="cell-text"><%= cell.text %></div>
+      <span class="official-mark" aria-hidden="true"><%= mark_symbol(cell.mark) %></span>
+      <div class="cell-bottom"><span class="proposal-counts"><span class="question-count">? <%= proposals.count { |p| p.mark == 'question' } %></span><span class="cross-count">X <%= proposals.count { |p| p.mark == 'cross' } %></span></span>
+        <% if !@presentation && current_participant && @event.state == 'live' %><button type="button" class="cell-open" data-action="board#openCell" data-position="<%= cell.position %>" aria-label="Oznacz pole <%= cell.position + 1 %>">＋</button><% end %>
+      </div>
+      <% if !@presentation && current_participant && @event.state == 'live' %>
+        <dialog class="cell-dialog" data-cell-dialog="<%= cell.position %>"><button class="dialog-close" data-action="board#closeCell" aria-label="Zamknij">×</button><span class="eyebrow">POLE <%= cell.position + 1 %></span><h3><%= cell.text %></h3><p>Oficjalnie: <strong><%= mark_label(cell.mark) %></strong></p>
+          <p>Twoja propozycja: <strong><%= mine ? mark_label(mine.mark) : 'brak' %></strong></p><div class="mark-actions">
+            <% [['question', '? Może'], ['cross', 'X Wydarzyło się'], ['blank', 'Wycofaj']].each do |mark, label| %><%= button_to label, event_proposals_path(@event), params: { cell_id: cell.id, mark: mark, revision: cell.revision }, class: "button secondary" %><% end %>
+          </div>
+          <% if current_participant.admin? %><div class="admin-mark-section"><span class="eyebrow">DECYZJA ADMINISTRACJI</span><p>Zmiana rozstrzygnie obecne propozycje.</p><div class="mark-actions"><% [['question', '?'], ['cross', 'X'], ['blank', 'Wyczyść']].each do |mark, label| %><%= button_to label, mark_admin_event_path(@event), params: { cell_id: cell.id, mark: mark, revision: cell.revision }, class: "button primary", form: { data: { turbo_confirm: "Zapisać oficjalne oznaczenie: #{mark_label(mark)}?" } } %><% end %></div></div><% end %>
+        </dialog>
+      <% end %>
+    </article>
+  <% end %>
+</div>
+<% if lines.any? %><div class="bingo-celebration" role="status">✦ BINGO! <span>Ukończone linie: <%= lines.length %></span></div><% end %>

@@ -1,0 +1,21 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5).to_i + 5 %>
+  host: <%= ENV.fetch("DB_HOST", "localhost") %>
+  port: <%= ENV.fetch("DB_PORT", 5432) %>
+  username: <%= ENV.fetch("POSTGRES_USER", "uv_bingo") %>
+  password: <%= ENV["POSTGRES_PASSWORD"] %>
+
+development:
+  <<: *default
+  database: uv_bingo_development
+test:
+  <<: *default
+  database: uv_bingo_test
+staging:
+  <<: *default
+  database: uv_bingo_staging
+production:
+  <<: *default
+  database: uv_bingo_production

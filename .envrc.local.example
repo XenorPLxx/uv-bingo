@@ -1,0 +1,6 @@
+export DB_HOST=localhost
+export DB_PORT=5438
+export POSTGRES_USER=uv_bingo
+export POSTGRES_PASSWORD=local-development-only
+export APP_URL=http://localhost:3100
+export ADMIN_DISCORD_IDS=

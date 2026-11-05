@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+destination="${1:-staging}"
+case "$destination" in staging|production) ;; *) echo 'Unknown destination' >&2; exit 1;; esac
+set -a
+source ".envrc.${destination}"
+set +a
+exec bundle exec ruby script/register_discord.rb

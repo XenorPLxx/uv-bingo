@@ -1,0 +1,13 @@
+development:
+  adapter: solid_cable
+  polling_interval: 0.2.seconds
+test:
+  adapter: test
+staging:
+  adapter: solid_cable
+  polling_interval: 0.2.seconds
+  message_retention: 1.hour
+production:
+  adapter: solid_cable
+  polling_interval: 0.2.seconds
+  message_retention: 1.hour

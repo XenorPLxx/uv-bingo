@@ -1,0 +1,34 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: uv_bingo
+          POSTGRES_PASSWORD: test-password
+        ports: ["5432:5432"]
+        options: --health-cmd="pg_isready -U uv_bingo" --health-interval=5s --health-timeout=5s --health-retries=10
+    env:
+      RAILS_ENV: test
+      POSTGRES_PASSWORD: test-password
+      RUBOCOP_CACHE_ROOT: tmp/rubocop
+      SE_AVOID_STATS: "true"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - run: bin/rails db:prepare
+      - run: bin/rubocop
+      - run: bundle exec brakeman --quiet --no-pager
+      - run: bin/bundler-audit
+      - run: bin/importmap audit
+      - run: bin/rails test test:system
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-screenshots
+          path: tmp/screenshots

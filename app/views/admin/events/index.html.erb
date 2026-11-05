@@ -1,0 +1,2 @@
+<div class="admin-heading"><div><span class="eyebrow">PANEL ADMINISTRACJI</span><h1>Wydarzenia</h1></div><%= link_to "Nowe wydarzenie +", new_admin_event_path, class: "button primary" %></div>
+<div class="event-list"><% @events.each do |event| %><%= link_to admin_event_path(event), class: "panel event-list-item" do %><div><h2><%= event.title %></h2><p><%= voting_schedule(event) %></p></div><span class="tag"><%= phase_label(event.phase) %></span><% end %><% end %></div>

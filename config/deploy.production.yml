@@ -1,0 +1,25 @@
+ssh:
+  user: ubuntu
+servers:
+  web:
+    hosts:
+      - 5.135.141.150
+proxy:
+  host: uv-bingo.xenor.ovh
+env:
+  clear:
+    RAILS_ENV: production
+    APP_HOST: uv-bingo.xenor.ovh
+    APP_URL: https://uv-bingo.xenor.ovh
+accessories:
+  db:
+    image: postgres:17-alpine
+    roles: [web]
+    env:
+      clear:
+        POSTGRES_USER: uv_bingo
+        POSTGRES_DB: uv_bingo_production
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql/data

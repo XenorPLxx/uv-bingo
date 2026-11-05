@@ -1,0 +1,4 @@
+<% content_for :title, "#{@event.title} · Plansza" %>
+<header class="presentation-header"><%= render "shared/brand" %><div><span class="eyebrow">WSPÓLNA PLANSZA</span><h1><%= @event.title %></h1></div><div class="presentation-tools" data-controller="presentation"><button class="button secondary" data-action="presentation#fullscreen">Pełny ekran</button><button class="button secondary" data-action="presentation#toggle">Ukryj propozycje</button></div></header>
+<%= render "events/board_shell" %>
+<footer class="presentation-footer"><span>UV O GRACH × THE GAME AWARDS</span><span>? DO DYSKUSJI &nbsp; / &nbsp; X POTWIERDZONE</span></footer>

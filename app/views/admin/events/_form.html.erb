@@ -1,0 +1,7 @@
+<%= form_with model: [:admin, event], class: "admin-form" do |form| %>
+  <div><%= form.label :title, "Nazwa wydarzenia" %><%= form.text_field :title, required: true, maxlength: 100 %></div>
+  <% if event.new_record? %><div><%= form.label :slug, "Adres (np. tga-2026)" %><%= form.text_field :slug, required: true, pattern: '[a-z0-9]+(-[a-z0-9]+)*' %></div><label class="checkbox-label"><%= form.check_box :rehearsal %> Wydarzenie próbne</label><% end %>
+  <div><%= form.label :description, "Krótki opis" %><%= form.text_area :description, rows: 3, maxlength: 1000 %></div>
+  <div class="form-columns"><div><%= form.label :opens_at, "Początek głosowania (Warszawa)" %><%= form.datetime_local_field :opens_at, required: true %></div><div><%= form.label :closes_at, "Koniec głosowania (Warszawa)" %><%= form.datetime_local_field :closes_at, required: true %></div></div>
+  <%= form.submit "Zapisz ustawienia", class: "button primary" %>
+<% end %>

@@ -1,0 +1,47 @@
+service: uv-bingo
+image: xenor/uv-bingo
+minimum_version: 2.11.0
+registry:
+  server: gitea.xenor.ovh
+  username: <%= ENV.fetch("KAMAL_REGISTRY_USERNAME") %>
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+builder:
+  arch: amd64
+  dockerfile: Dockerfile
+logging:
+  options:
+    max-size: 20m
+    max-file: "3"
+proxy:
+  ssl: true
+  app_port: 3000
+  healthcheck:
+    path: /up
+    interval: 3
+    timeout: 5
+  buffering:
+    max_request_body: 1048576
+  logging:
+    request_headers: []
+    response_headers: []
+env:
+  clear:
+    RAILS_LOG_TO_STDOUT: "1"
+    RAILS_SERVE_STATIC_FILES: "1"
+    RAILS_MAX_THREADS: "5"
+    WEB_CONCURRENCY: "1"
+    DB_HOST: uv-bingo-db
+    POSTGRES_USER: uv_bingo
+    DISCORD_COMMAND: bingo
+    DISCORD_APPLICATION_ID: <%= ENV.fetch("DISCORD_APPLICATION_ID", "") %>
+    DISCORD_PUBLIC_KEY: <%= ENV.fetch("DISCORD_PUBLIC_KEY", "") %>
+    DISCORD_GUILD_ID: <%= ENV.fetch("DISCORD_GUILD_ID", "") %>
+    DISCORD_CHANNEL_ID: <%= ENV.fetch("DISCORD_CHANNEL_ID", "") %>
+  secret:
+    - SECRET_KEY_BASE
+    - POSTGRES_PASSWORD
+    - ADMIN_DISCORD_IDS
+aliases:
+  console: app exec --reuse -i "bin/rails console"
+  logs: app logs -f
