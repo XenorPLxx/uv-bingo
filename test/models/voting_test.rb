@@ -49,10 +49,50 @@ class VotingTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::RecordNotFound) { Voting.cast!(event: @event, participant: @voter, option_id: foreign.id) }
   end
 
-  test "votes cannot be edited or destroyed" do
-    vote = Voting.cast!(event: @event, participant: @voter, text: "Ostateczny")
+  test "votes cannot be edited or destroyed outside the voting service" do
+    vote = Voting.cast!(event: @event, participant: @voter, text: "Mój typ")
     assert_raises(ActiveRecord::ReadOnlyRecord) { vote.update!(slot: 2) }
     assert_raises(ActiveRecord::ReadOnlyRecord) { vote.destroy! }
+  end
+
+  test "withdrawing a middle vote preserves its option and frees exactly one reusable slot" do
+    votes = 5.times.map { |i| Voting.cast!(event: @event, participant: @voter, text: "Typ #{i}") }
+    withdrawn = votes.fetch(1)
+    assert_no_difference "Option.count" do
+      assert_difference "Vote.count", -1 do
+        Voting.withdraw!(event: @event, participant: @voter, vote_id: withdrawn.id)
+      end
+    end
+    assert_equal 1, @voter.votes_remaining(@event)
+    assert_equal 0, withdrawn.option.votes.count
+    replacement = Voting.cast!(event: @event, participant: @voter, option_id: withdrawn.option_id)
+    assert_equal 2, replacement.slot
+    assert_equal 0, @voter.votes_remaining(@event)
+  end
+
+  test "withdrawal requires ownership event and an open voting window" do
+    vote = Voting.cast!(event: @event, participant: @voter, text: "Mój typ")
+    assert_no_difference "Vote.count" do
+      assert_raises(ActiveRecord::RecordNotFound) { Voting.withdraw!(event: @event, participant: create_participant, vote_id: vote.id) }
+      assert_raises(ActiveRecord::RecordNotFound) { Voting.withdraw!(event: create_event, participant: @voter, vote_id: vote.id) }
+      travel_to @event.closes_at do
+        assert_raises(Voting::Invalid) { Voting.withdraw!(event: @event, participant: @voter, vote_id: vote.id) }
+      end
+    end
+    vote.option.update!(disqualified_at: Time.current)
+    Voting.withdraw!(event: @event, participant: @voter, vote_id: vote.id)
+    assert_equal 5, @voter.votes_remaining(@event)
+  end
+
+  test "simultaneous events have independent five vote allowances" do
+    other = create_event
+    [ @event, other ].each do |event|
+      5.times { |i| Voting.cast!(event: event, participant: @voter, text: "Typ #{i}") }
+      assert_equal 0, @voter.votes_remaining(event)
+    end
+    Voting.withdraw!(event: @event, participant: @voter, vote_id: @voter.votes.where(event: @event).first.id)
+    assert_equal 1, @voter.votes_remaining(@event)
+    assert_equal 0, @voter.votes_remaining(other)
   end
 
   test "database rejects a sixth slot even when model validation is bypassed" do

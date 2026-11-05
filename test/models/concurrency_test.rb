@@ -7,10 +7,11 @@ class ConcurrencyTest < ActiveSupport::TestCase
     [ Proposal, Cell, Draw, AuditEntry, Vote, Option, LoginToken, Session, Participant, Event ].each(&:delete_all)
   end
 
-  test "simultaneous requests can consume only the last available vote" do
+  test "simultaneous requests can consume only the slot freed by withdrawal" do
     event = create_event
     voter = create_participant
-    4.times { |i| Voting.cast!(event: event, participant: voter, text: "Mój #{i}") }
+    votes = 5.times.map { |i| Voting.cast!(event: event, participant: voter, text: "Mój #{i}") }
+    Voting.withdraw!(event: event, participant: voter, vote_id: votes.fetch(1).id)
     options = seed_options(event, 3)
     gate = Queue.new
     threads = options.map do |option|
@@ -27,6 +28,7 @@ class ConcurrencyTest < ActiveSupport::TestCase
     3.times { gate << true }
     assert_equal [ :accepted, :rejected, :rejected ], threads.map(&:value).sort
     assert_equal 5, voter.votes.count
+    assert_equal [ 1, 2, 3, 4, 5 ], voter.votes.order(:slot).pluck(:slot)
   end
 
   test "simultaneous draw requests produce one board and one audit record" do

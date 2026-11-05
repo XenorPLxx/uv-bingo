@@ -1,6 +1,6 @@
 # UV Bingo
 
-A Polish-language community bingo for UV o grach. Members sign in through a Discord `/bingo` command, submit predictions, and spend up to five final votes. Admins draw one shared 5×5 board and run it live with community suggestions.
+A Polish-language community bingo for UV o grach. Members sign in through a Discord `/bingo` command, submit predictions, and choose up to five predictions per event. Admins draw one shared 5×5 board and run it live with community suggestions.
 
 ## Stack
 
@@ -26,16 +26,18 @@ For local manual testing, create a participant and a single-use token through `b
 
 ## Rules
 
+- Multiple events can be open at once and are linked in the public event navigation. Each has its own dates, board and voting budget.
 - Five vote slots per participant per event, enforced by PostgreSQL constraints and row locks.
 - Adding an option and casting its first vote are one transaction.
-- One vote per distinct option; votes cannot be changed or withdrawn. Duplicate vote retries are idempotent.
-- Both submissions and votes require `opens_at <= now < closes_at`, stored in UTC and displayed in Europe/Warsaw.
+- One vote per distinct option; participants can withdraw their own votes during the voting window and reuse the freed slots. Withdrawing never deletes the option, including a self-submitted one. Duplicate vote retries are idempotent.
+- Submissions, votes, and withdrawals require `opens_at <= now < closes_at`, stored in UTC and displayed in Europe/Warsaw.
 - Duplicate text is normalized with Unicode NFKC, whitespace squishing, and case folding. Invalid/duplicate submissions spend nothing.
-- Disqualified options keep their existing spent votes but cannot receive more votes or enter the draw. Admin corrections require a reason and audit record.
+- Disqualified options cannot receive more votes or enter the draw. Their existing votes can still be withdrawn by their owners during voting. Admin corrections require a reason and audit record.
 - Totals are visible publicly only after the voting window closes. Admins can inspect them earlier.
 - Draws require at least 25 eligible options with votes and a closed window. The top 25 qualify. Equal totals are ordered using seeded SHA-256 keys; the leading option occupies position 12 (center), and the remaining 24 are independently shuffled.
 - Draws store the full eligible snapshot, SHA-256 digest, seed, algorithm version, ordered option IDs, actor and timestamp. Cell text is copied at draw time. Refreshing/replaying never generates another draw. Export is available from the board page.
 - During live play, each participant has one changeable `?`/`X` proposal per cell revision, independent of their voting allowance. Admin marks advance the cell revision; older proposals stay in history but stop counting.
+- Community counters are clickable `?`/`X` suggestions; colored buttons on the right are admin decisions. Clicking a selected mark again clears it. Both regular and presentation views support these actions without dialogs or navigation; anonymous viewers see live counters and marks.
 - Only official `X` marks complete rows, columns and diagonals. Archived events are read-only.
 
 The draw record is reproducible, not an externally tamper-proof lottery. Database operators remain trusted.
@@ -58,7 +60,7 @@ bin/bundler-audit
 bin/importmap audit
 ```
 
-Tests cover budget concurrency, voting boundaries, immutable votes, duplicate handling, tie selection, repeated/concurrent draws, login token replay, Discord signatures, admin authorization, stale proposal revisions, staging Basic Auth, mobile layout, and updates between two browsers. Browser screenshots are written to `tmp/screenshots/`.
+Tests cover budget concurrency, voting boundaries, vote withdrawals and reused slots, duplicate handling, tie selection, repeated/concurrent draws, login token replay, Discord signatures, admin authorization, stale proposal revisions, staging Basic Auth, mobile layout, and updates between two browsers. Browser screenshots are written to `tmp/screenshots/`.
 
 ## Deployment
 

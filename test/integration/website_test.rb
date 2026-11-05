@@ -70,11 +70,75 @@ class WebsiteTest < ActionDispatch::IntegrationTest
         assert_select ".bingo-cell", 25
         get presentation_event_path(@event)
         assert_response :success
-        assert_select ".cell-open", 0
+        assert_select ".proposal-button", 50
+        assert_select ".decision-button", 50
+        assert_select "dialog", 0
+        get reveal_event_path(@event)
+        assert_select ".proposal-button, .decision-button", 0
         get state_event_path(@event), params: { presentation: "1" }
         assert_response :success
         assert_equal "live", response.parsed_body["phase"]
       end
+    end
+  end
+
+  test "event navigation exposes simultaneous events and each voting budget" do
+    other = create_event(title: "Drugie wydarzenie")
+    get root_path
+    assert_select "nav[aria-label=Wydarzenia] a[href=?]", event_path(@event)
+    assert_select "nav[aria-label=Wydarzenia] a[href=?]", event_path(other)
+    get event_path(@event)
+    assert_select "nav[aria-label=Wydarzenia] a[aria-current=page][href=?]", event_path(@event)
+    assert_select "nav[aria-label=Wydarzenia] a[href=?]", event_path(other)
+  end
+
+  test "a signed in participant can withdraw only their own vote without deleting the option" do
+    own_vote = Voting.cast!(event: @event, participant: @voter, text: "Mój typ")
+    other_vote = Voting.cast!(event: @event, participant: create_participant, text: "Cudzy typ")
+    delete event_vote_path(@event, own_vote)
+    assert_redirected_to sign_in_path
+    sign_in_as(@voter)
+    assert_no_difference "Vote.count" do
+      delete event_vote_path(@event, other_vote)
+      assert_response :not_found
+    end
+    assert_difference "Vote.count", -1 do
+      delete event_vote_path(@event, own_vote)
+      assert_redirected_to event_path(@event, anchor: "options")
+    end
+    assert Option.exists?(own_vote.option_id)
+    assert_equal 5, @voter.votes_remaining(@event)
+  end
+
+  test "inline board requests enforce roles revisions and retain presentation fallback" do
+    admin = create_participant
+    seed_options(@event, 25)
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: admin)
+    @event.update!(state: "live")
+    cell = @event.cells.first
+    action = { cell_id: cell.id, mark: "question", revision: cell.revision, presentation: "1" }
+    post event_proposals_path(@event), params: action, as: :json
+    assert_response :unauthorized
+    with_env ADMIN_DISCORD_IDS: admin.discord_id do
+      sign_in_as(@voter)
+      get presentation_event_path(@event)
+      assert_select ".proposal-button", 50
+      assert_select ".decision-button", 0
+      post event_proposals_path(@event), params: action, as: :json
+      assert_response :success
+      assert_equal "question", cell.proposals.last.mark
+      post mark_admin_event_path(@event), params: action, as: :json
+      assert_response :forbidden
+      sign_in_as(admin)
+      post mark_admin_event_path(@event), params: action, as: :json
+      assert_response :success
+      assert_equal "question", cell.reload.mark
+      post event_proposals_path(@event), params: action, as: :json
+      assert_response :unprocessable_entity
+      assert_match "Pole zostało zmienione", response.parsed_body.fetch("error")
+      post mark_admin_event_path(@event), params: action.merge(mark: "blank", revision: cell.revision)
+      assert_redirected_to presentation_event_path(@event)
     end
   end
 

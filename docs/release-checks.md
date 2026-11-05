@@ -17,3 +17,12 @@ Rehearsal voting event: `/e/tga-2026-proba`.
 Live verification board: `/e/kontrola-wdrozenia`.
 
 These are clearly labeled test events. Production has configuration only and has not been deployed. Source is a separate local Git repository; no remote source repository was created.
+
+## Voting and board update — 5 November 2026
+
+- Multiple events are linked from the voting and board pages; voting allowances remain independent per event.
+- Participants can withdraw votes until the deadline, including their initial vote on their own proposal. Proposals remain available; a freed slot can be reused without exceeding five active votes.
+- Compact option cards remove the repeated equal-weight caption, and larger text improves readability.
+- Inline community suggestions and colored admin decisions work in both board views. Clicking the selected mark again clears it; the board updates without navigation or confirmation dialogs.
+- Application suite: 31 tests / 188 assertions. Chrome suite: 2 tests / 39 assertions, including withdrawal at the limit, two-browser live updates, role-specific controls, and long text fitting on desktop and narrow screens.
+- RuboCop passes; Brakeman reports no warnings. No database migration is required.

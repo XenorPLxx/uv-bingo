@@ -1,4 +1,5 @@
 <% content_for :title, "#{@event.title} · UV Bingo" %>
+<%= render "events/navigation" %>
 <% if @event.draw %>
   <%= render "events/live" %>
 <% else %>
@@ -25,15 +26,16 @@
       <% end %>
       <div class="options-grid">
         <% @options.each_with_index do |option, index| %>
-          <% voted = @voted_ids.include?(option.id) %>
-          <article class="option-card <%= 'selected' if voted %>">
+          <% vote = @votes_by_option[option.id]; voted = vote.present? %>
+          <article class="option-card <%= 'selected' if voted %>" id="option-<%= option.id %>">
             <div class="option-top"><span>PROPOZYCJA <%= format('%02d', index + 1) %></span><% if voted %><span class="chosen">✓ TWÓJ GŁOS</span><% end %></div>
             <h3><%= option.text %></h3>
             <div class="option-bottom">
-              <% if @counts %><span class="vote-total"><%= @counts.fetch(option.id, 0) %> głosów</span><% else %><span class="muted">Każdy głos ma tę samą wagę</span><% end %>
-              <% if voted %><span class="voted-label">Zapisano ✓</span>
+              <% if @counts %><span class="vote-total"><%= @counts.fetch(option.id, 0) %> głosów</span><% end %>
+              <% if voted && @event.voting_open? %><%= button_to "Cofnij głos", event_vote_path(@event, vote), method: :delete, class: "button vote-button withdraw-button" %>
+              <% elsif voted %><span class="voted-label">Twój głos ✓</span>
               <% elsif @event.voting_open? && current_participant && @remaining.positive? %>
-                <%= button_to "Głosuję +1", event_votes_path(@event), params: { option_id: option.id }, class: "button vote-button", form: { data: { turbo_confirm: "Oddać głos na: „#{option.text}”? Głosu nie można cofnąć." } } %>
+                <%= button_to "Głosuję +1", event_votes_path(@event), params: { option_id: option.id }, class: "button vote-button" %>
               <% elsif @event.voting_open? && !current_participant %><%= link_to "Głosuję +1", sign_in_path, class: "button vote-button" %>
               <% else %><span class="muted"><%= @remaining == 0 ? 'Limit wykorzystany' : 'Głosowanie nieaktywne' %></span><% end %>
             </div>
@@ -45,19 +47,19 @@
     <aside class="voting-sidebar">
       <section class="panel ballot-panel">
         <div class="panel-heading"><span class="eyebrow">TWOJA PIĄTKA</span><span class="ballot-count"><%= current_participant ? 5 - @remaining : 0 %><small>/5</small></span></div>
-        <h3>Małe typy. Wielkie nadzieje.</h3><p class="muted">Głosujesz raz na każdą propozycję.<br>Wybory są ostateczne.</p>
-        <ol class="ballot-slots"><% 5.times do |slot| %><% vote = @my_votes&.[](slot) %><li class="<%= 'filled' if vote %>"><span><%= vote ? '✓' : format('%02d', slot + 1) %></span><span><%= vote ? vote.option.text : 'Miejsce na Twój typ' %></span></li><% end %></ol>
-        <% unless current_participant %><%= link_to "Dołącz przez Discord ↗", sign_in_path, class: "button primary wide" %><p class="fineprint">Jedno konto Discord = 5 głosów.</p><% end %>
+        <h3>Małe typy. Wielkie nadzieje.</h3><p class="muted">Do 5 typów na wydarzenie. Możesz zmieniać wybory do końca głosowania.</p>
+        <ol class="ballot-slots"><% 5.times do |slot| %><% vote = @my_votes&.[](slot) %><li class="<%= 'filled' if vote %>"><span><%= vote ? '✓' : format('%02d', slot + 1) %></span><span class="ballot-text"><%= vote ? vote.option.text : 'Miejsce na Twój typ' %></span><% if vote && @event.voting_open? %><%= button_to "×", event_vote_path(@event, vote), method: :delete, class: "ballot-remove", aria: { label: "Cofnij głos: #{vote.option.text}" } %><% end %></li><% end %></ol>
+        <% unless current_participant %><%= link_to "Dołącz przez Discord ↗", sign_in_path, class: "button primary wide" %><p class="fineprint">Jedno konto Discord = 5 głosów na wydarzenie.</p><% end %>
       </section>
       <section class="panel add-panel"><span class="eyebrow">MASZ LEPSZY POMYSŁ?</span><h3>Dorzucasz coś od siebie?</h3><p class="muted">Dodanie propozycji wykorzysta 1 z Twoich 5 głosów.</p>
         <% if @event.voting_open? && current_participant && @remaining.positive? %>
-          <%= form_with url: event_options_path(@event), data: { controller: "option-preview", turbo_confirm: "Dodać tę propozycję i oddać na nią jeden ostateczny głos?" } do |form| %>
+          <%= form_with url: event_options_path(@event), data: { controller: "option-preview" } do |form| %>
             <%= form.label :text, "Twoja propozycja", class: "sr-only" %><%= form.text_area :text, maxlength: 100, required: true, rows: 3, placeholder: "Na przykład: zwiastun, o którym będziemy mówić jeszcze w styczniu…", data: { action: "input->option-preview#update", option_preview_target: "input" } %>
             <div class="input-meta"><span>Krótko, żeby zmieściło się na planszy.</span><span data-option-preview-target="count">0/100</span></div>
             <details class="preview-details"><summary>Podgląd pola</summary><div class="tile-preview" data-option-preview-target="preview">Twój pomysł</div></details>
             <%= form.submit "Dodaj propozycję +1", class: "button secondary wide" %>
           <% end %>
-          <% else %><p class="fineprint"><%= !current_participant ? 'Zaloguj się, aby dodać swój pomysł.' : @remaining == 0 ? 'Twoje pięć głosów już jest w grze. Dzięki!' : 'Dodawanie propozycji jest dostępne w czasie głosowania.' %></p><% end %>
+          <% else %><p class="fineprint"><%= !current_participant ? 'Zaloguj się, aby dodać swój pomysł.' : @remaining == 0 && @event.voting_open? ? 'Twoje pięć głosów już jest w grze. Cofnij jeden, aby dodać nowy pomysł.' : 'Dodawanie propozycji jest dostępne w czasie głosowania.' %></p><% end %>
       </section>
       <div class="how-it-works"><span class="eyebrow">CO DALEJ?</span><p><strong>25 najpopularniejszych typów</strong> trafi na wspólną planszę. Zwycięzca zajmie środek, a pozostałe pola rozlosujemy razem.</p></div>
     </aside>

@@ -1,0 +1,10 @@
+<nav class="event-navigation" aria-label="Wydarzenia">
+  <span class="eyebrow">WYBIERZ WYDARZENIE</span>
+  <div class="event-links">
+    <% @events.each do |event| %>
+      <%= link_to event_path(event), class: "event-link #{'current' if event == @event}", aria: { current: event == @event ? 'page' : nil } do %>
+        <strong><%= event.title %></strong><span class="event-phase phase-<%= event.phase %>"><%= phase_label(event.phase) %></span>
+      <% end %>
+    <% end %>
+  </div>
+</nav>

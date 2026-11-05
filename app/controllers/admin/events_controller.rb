@@ -71,14 +71,14 @@ module Admin
         end
         audit!("moderate", { option_id: option.id, before: before, after: option.attributes.slice(*before.keys), reason: reason })
       end
-      redirect_to admin_event_path(@event, anchor: "moderation"), notice: "Zmiana zapisana. Wydane głosy pozostają wykorzystane."
+      redirect_to admin_event_path(@event, anchor: "moderation"), notice: "Zmiana zapisana. Uczestnicy mogą cofnąć swoje głosy do końca głosowania."
     end
 
     def mark
       cell = @event.cells.find(params[:cell_id])
       BoardActions.mark!(cell: cell, admin: current_participant, mark: params[:mark], revision: params.require(:revision))
       @event.reload.broadcast_update!
-      redirect_to event_path(@event, anchor: "board"), notice: "Oznaczenie zapisane."
+      board_action_response("Oznaczenie zapisane.")
     end
 
     private

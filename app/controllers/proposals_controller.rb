@@ -7,6 +7,6 @@ class ProposalsController < ApplicationController
     cell = @event.cells.find(params[:cell_id])
     BoardActions.propose!(cell: cell, participant: current_participant, mark: params[:mark], revision: params.require(:revision))
     @event.reload.broadcast_update!
-    redirect_to event_path(@event, anchor: "board"), notice: "Twoja propozycja została zapisana."
+    board_action_response(params[:mark] == "blank" ? "Twoja propozycja oznaczenia została cofnięta." : "Twoja propozycja oznaczenia została zapisana.")
   end
 end

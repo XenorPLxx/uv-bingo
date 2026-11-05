@@ -25,12 +25,14 @@ The entrypoint runs `db:prepare` before Rails starts; do not run an additional m
 
 ## Event rehearsal
 
+Use the event links above the hero/board to switch between voting and live events. Multiple voting windows can overlap; each participant has a separate five-vote allowance in each event.
+
 1. `/bingo` in the configured test channel, open the private link, enter staging HTTP credentials, confirm login.
-2. Add an option and vote. Each action spends one slot; the fifth disables further submissions.
+2. Add an option and vote. Each action uses one of five active slots. Withdraw a vote to free a slot; its proposal remains available. Choices freeze when voting closes.
 3. Open `/admin`; choose the rehearsal event and move its closing date into the past (after its opening date).
 4. Confirm the draw. Record the reveal screen; replay displays the saved result.
 5. Start the live event from admin. Open presentation mode in another browser.
-6. Propose `?` / `X`, then make an official decision. Verify the viewer updates and old proposals stop counting.
+6. Click the `?` / `X` counters on the left to suggest a mark. Admins use the colored buttons on the right for official decisions. Both work in presentation mode; clicking a selected mark again clears it. Verify the viewer updates and old proposals stop counting.
 7. Archive the event. Create a new rehearsal event for another run; never reroll the same event.
 
 Production should use a fresh event with real options/votes, not the seeded rehearsal data.

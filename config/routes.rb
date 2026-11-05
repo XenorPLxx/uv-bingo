@@ -15,7 +15,7 @@ Rails.application.routes.draw do
       get :draw_record
     end
     resources :options, only: :create
-    resources :votes, only: :create
+    resources :votes, only: [ :create, :destroy ]
     resources :proposals, only: :create
   end
   namespace :admin do

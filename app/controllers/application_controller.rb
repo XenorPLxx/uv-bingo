@@ -14,7 +14,12 @@ class ApplicationController < ActionController::Base
   def current_participant = current_session&.participant
 
   def require_participant
-    redirect_to sign_in_path, alert: "Zaloguj się przez komendę /bingo na Discordzie." unless current_participant
+    return if current_participant
+    message = "Zaloguj się przez komendę /bingo na Discordzie."
+    respond_to do |format|
+      format.json { render json: { error: message }, status: :unauthorized }
+      format.html { redirect_to sign_in_path, alert: message }
+    end
   end
 
   def require_admin
@@ -30,7 +35,21 @@ class ApplicationController < ActionController::Base
   end
 
   def invalid_action(error)
-    redirect_to(@event&.persisted? ? event_path(@event) : root_path, alert: error.message, status: :see_other)
+    respond_to do |format|
+      format.json { render json: { error: error.message }, status: :unprocessable_entity }
+      format.html { redirect_to(@event&.persisted? ? board_return_path : root_path, alert: error.message, status: :see_other) }
+    end
+  end
+
+  def board_action_response(message)
+    respond_to do |format|
+      format.json { render json: { message: message } }
+      format.html { redirect_to board_return_path, notice: message, status: :see_other }
+    end
+  end
+
+  def board_return_path
+    params[:presentation] == "1" && @event.draw ? presentation_event_path(@event) : event_path(@event)
   end
 
   def duplicate_action
