@@ -32,6 +32,7 @@ export default class extends Controller {
     const timeout = setTimeout(() => this.request.abort(), 8000)
     try {
       const response = await fetch(this.urlValue, { headers: { Accept: "application/json" }, cache: "no-store", signal: this.request.signal })
+      if (response.status === 404) { window.location.replace("/?removed=1"); return }
       if (!response.ok) throw new Error("state request failed")
       const data = await response.json()
       if (data.phase !== this.phaseValue) { window.location.reload(); return }

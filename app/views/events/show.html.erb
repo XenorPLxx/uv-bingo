@@ -13,7 +13,7 @@
     </div>
   </section>
   <div class="event-strip" data-controller="countdown" data-countdown-opens-value="<%= @event.opens_at.iso8601 %>" data-countdown-closes-value="<%= @event.closes_at.iso8601 %>">
-    <div><span class="status-dot <%= @event.phase == 'open' ? 'active' : '' %>"></span><strong><%= phase_label(@event.phase) %></strong><% if @event.rehearsal? %><span class="tag">PRÓBA GENERALNA</span><% end %></div>
+    <div><span class="status-dot <%= @event.phase == 'open' ? 'active' : '' %>"></span><strong><%= phase_label(@event.phase) %></strong><% if @event.rehearsal? %><span class="tag">WYDARZENIE TESTOWE</span><% end %></div>
     <span data-countdown-target="label"><%= voting_schedule(@event) %></span>
   </div>
   <div class="voting-layout" id="options" data-controller="event-status" data-event-status-url-value="<%= state_event_path(@event) %>" data-event-status-phase-value="<%= @event.phase %>" data-event-status-revision-value="<%= @event.revision %>">

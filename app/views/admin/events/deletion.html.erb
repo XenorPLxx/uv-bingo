@@ -1,0 +1,12 @@
+<% content_for :title, "Usuń wydarzenie · #{@event.title}" %>
+<div class="admin-heading"><div><h1>Usuń wydarzenie</h1></div></div>
+<section class="panel deletion-panel">
+  <h2><%= @event.title %></h2>
+  <p>Usunięcie obejmie to wydarzenie oraz wszystkie jego propozycje, głosy, planszę i historię. Tej operacji nie można cofnąć.</p>
+  <dl class="deletion-summary"><% @deletion_counts.each do |label, count| %><div><dt><%= label %></dt><dd><%= count %></dd></div><% end %></dl>
+  <% if @deletion_error %><p class="flash alert" role="alert"><%= @deletion_error %></p><% end %>
+  <%= form_with url: admin_event_path(@event), method: :delete, class: "admin-form deletion-form" do |form| %>
+    <div><%= form.label :confirmation, "Wpisz „#{@event.slug}”, aby potwierdzić" %><%= form.text_field :confirmation, value: params[:confirmation], required: true, pattern: @event.slug, autocomplete: "off", spellcheck: false %></div>
+    <div class="button-row"><%= form.submit "Usuń trwale", class: "button danger" %><%= link_to "Anuluj", admin_event_path(@event), class: "button secondary" %></div>
+  <% end %>
+</section>

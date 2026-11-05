@@ -2,6 +2,7 @@ class EventsController < ApplicationController
   before_action :set_event, except: :index
 
   def index
+    flash.now[:notice] = "Wydarzenie zostało usunięte." if params[:removed] == "1"
     @events = Event.order(created_at: :desc)
     @event = @events.where.not(state: "archived").first || @events.first
     if @event

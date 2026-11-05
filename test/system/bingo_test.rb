@@ -124,6 +124,35 @@ class BingoTest < ApplicationSystemTestCase
       save_screenshot(Rails.root.join("tmp/screenshots/presentation.png"))
     end
   end
+  test "admin can review and delete a drawn event and live viewers leave the deleted board" do
+    ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
+    seed_options(@event, 25)
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: @voter)
+    @event.update!(state: "live")
+    browser_sign_in(@voter)
+    Capybara.using_session(:deleted_board_viewer) do
+      visit presentation_event_path(@event)
+      assert_selector ".bingo-cell", count: 25
+      assert_text "POŁĄCZONO NA ŻYWO"
+    end
+    visit admin_event_path(@event)
+    click_link "Usuń wydarzenie"
+    assert_selector "h1", text: "Usuń wydarzenie"
+    assert_text "Tej operacji nie można cofnąć."
+    assert Event.exists?(@event.id)
+    fill_in "confirmation", with: @event.slug
+    click_button "Usuń trwale"
+    assert_current_path admin_root_path
+    assert_text "Wydarzenie zostało usunięte."
+    assert_not Event.exists?(@event.id)
+    Capybara.using_session(:deleted_board_viewer) do
+      assert_current_path root_path(removed: "1"), wait: 15
+      assert_text "Wydarzenie zostało usunięte."
+      assert_no_selector ".bingo-cell"
+    end
+  end
+
   private
 
   def assert_board_text_fits

@@ -62,3 +62,10 @@ These are clearly labeled test events. Production has configuration only and has
 - Staging now uses `bing.testing.xenor.ovh` for the application URL and Discord interaction/login URLs. The previous `uv-bingo.testing.xenor.ovh` hostname remains a compatibility alias. Both hosts are covered by HTTPS, staging HTTP authentication, Rails host authorization and allowed Cable origins.
 - Production configuration and Rails fallback URLs target `bing.xenor.ovh` for the later production release. Production has not been deployed.
 - Validated both destination configurations with Kamal. Existing staging-authentication, Discord and website integration checks pass; RuboCop passes.
+
+## Event deletion and test-event explanation — 5 November 2026
+
+- Added **Usuń wydarzenie** to the admin event header. A separate review page lists the affected proposal, vote, draw, cell, mark-suggestion and audit-history counts. Permanent deletion requires typing the exact event slug.
+- Event-scoped cleanup runs under the event lock in one transaction, including merged proposals and immutable draw/audit records. Other events, participant accounts, sessions and login tokens remain. Deleted-board viewers return to the homepage with an explanation.
+- Renamed the rehearsal checkbox and public badge to **Wydarzenie testowe**. The creation form explains that it is a visible label only: these events are public and follow the same voting and drawing rules. It does not seed example data.
+- Application suite: 44 tests / 359 assertions. Chrome suite: 4 tests / 65 assertions. Coverage includes typed confirmation, permissions, scoped cleanup, rollback and live viewer navigation after deletion. RuboCop passes; Brakeman reports no warnings. A staging database backup was taken before deployment.

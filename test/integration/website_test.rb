@@ -212,6 +212,42 @@ class WebsiteTest < ActionDispatch::IntegrationTest
     assert_select "#option-#{popular.id} .option-count", "2"
   end
 
+  test "event deletion requires admin access and exact typed confirmation" do
+    option = Voting.cast!(event: @event, participant: @voter, text: "Propozycja do usunięcia").option
+    get deletion_admin_event_path(@event)
+    assert_response :forbidden
+    delete admin_event_path(@event), params: { confirmation: @event.slug }
+    assert_response :forbidden
+    sign_in_as(@voter)
+    delete admin_event_path(@event), params: { confirmation: @event.slug, admin: true }
+    assert_response :forbidden
+    with_env ADMIN_DISCORD_IDS: @voter.discord_id do
+      get admin_event_path(@event)
+      assert_select "a[href=?]", deletion_admin_event_path(@event)
+      assert_no_difference "Event.count" do
+        get deletion_admin_event_path(@event)
+        assert_response :success
+        assert_select ".deletion-form input[name=confirmation][required][pattern=?]", @event.slug
+        delete admin_event_path(@event), params: { confirmation: "niepoprawne" }
+        assert_response :unprocessable_entity
+      end
+      assert Option.exists?(option.id)
+      assert_difference "Event.count", -1 do
+        delete admin_event_path(@event), params: { confirmation: @event.slug }
+        assert_redirected_to admin_root_path
+      end
+      assert_not Option.exists?(option.id)
+      assert Participant.exists?(@voter.id)
+      get event_path(@event)
+      assert_response :not_found
+      get state_event_path(@event)
+      assert_response :not_found
+      get root_path, params: { removed: "1" }
+      assert_response :success
+      assert_match "Wydarzenie zostało usunięte", response.body
+    end
+  end
+
   test "server renders user text safely" do
     Voting.cast!(event: @event, participant: @voter, text: '<script>alert("x")</script>')
     get event_path(@event)

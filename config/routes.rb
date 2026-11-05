@@ -20,8 +20,9 @@ Rails.application.routes.draw do
   end
   namespace :admin do
     root "events#index"
-    resources :events, only: [ :index, :show, :new, :create, :update ] do
+    resources :events, only: [ :index, :show, :new, :create, :update, :destroy ] do
       member do
+        get :deletion
         post :draw
         post :transition
         post :moderate

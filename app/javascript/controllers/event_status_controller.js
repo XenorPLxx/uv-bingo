@@ -11,6 +11,7 @@ export default class extends Controller {
     const timeout = setTimeout(() => this.request.abort(), 8000)
     try {
       const response = await fetch(this.urlValue, { cache: "no-store", signal: this.request.signal })
+      if (response.status === 404) { Turbo.visit("/?removed=1", { action: "replace" }); return }
       if (!response.ok) return
       const state = await response.json()
       if ((state.phase !== this.phaseValue || state.revision !== this.revisionValue) && !["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName)) Turbo.visit(window.location.href, { action: "replace" })

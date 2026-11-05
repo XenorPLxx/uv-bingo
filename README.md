@@ -26,6 +26,7 @@ For local manual testing, create a participant and a single-use token through `b
 
 ## Rules
 
+- The test-event checkbox adds a public label only. It does not create sample options, hide the event, or change voting/draw rules.
 - Multiple events can be open at once and are linked in the public event navigation. Each has its own dates, board and voting budget.
 - Five vote slots per participant per event, enforced by PostgreSQL constraints and row locks.
 - Adding an option and casting its first vote are one transaction.
@@ -40,6 +41,7 @@ For local manual testing, create a participant and a single-use token through `b
 - During live play, each participant has one changeable `?`/`X` proposal per cell revision, independent of their voting allowance. Admin marks advance the cell revision; older proposals stay in history but stop counting.
 - Community counters are clickable `?`/`X` suggestions; colored buttons on the right are admin decisions. Clicking a selected mark again clears it. Both regular and presentation views support these actions without dialogs or navigation; anonymous viewers see live counters and marks.
 - Only official `X` marks complete rows, columns and diagonals. Archived events are read-only.
+- Admins can permanently delete an event after reviewing its data counts and typing its exact slug. Deletion removes its options, votes, board, mark suggestions and audit history in one transaction; participant accounts and other events remain. Open viewers return to the homepage when the event disappears.
 
 The draw record is reproducible, not an externally tamper-proof lottery. Database operators remain trusted.
 

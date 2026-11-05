@@ -27,6 +27,21 @@ module Admin
       @audits = @event.audit_entries.includes(:participant).order(created_at: :desc).limit(100)
     end
 
+    def deletion
+      prepare_deletion
+    end
+
+    def destroy
+      EventDeletion.call(event: @event, confirmation: params[:confirmation])
+      Rails.logger.info("Event deleted: event_id=#{@event.id} participant_id=#{current_participant.id}")
+      @event.broadcast_update!
+      redirect_to admin_root_path, notice: "Wydarzenie zostało usunięte.", status: :see_other
+    rescue Voting::Invalid => error
+      @deletion_error = error.message
+      prepare_deletion
+      render :deletion, status: :unprocessable_entity
+    end
+
     def update
       @event.with_lock do
         raise Voting::Invalid, "Ustawienia zostały zamknięte po losowaniu." if @event.draw
@@ -92,6 +107,17 @@ module Admin
     end
 
     private
+
+    def prepare_deletion
+      @deletion_counts = {
+        "Propozycje" => @event.options.count,
+        "Głosy" => @event.votes.count,
+        "Losowania" => Draw.where(event: @event).count,
+        "Pola planszy" => @event.cells.count,
+        "Sugestie oznaczeń" => Proposal.where(cell_id: @event.cells.select(:id)).count,
+        "Wpisy w historii" => @event.audit_entries.count
+      }
+    end
 
     def event_params
       params.require(:event).permit(:title, :slug, :description, :opens_at, :closes_at, :rehearsal)

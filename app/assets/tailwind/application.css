@@ -221,6 +221,13 @@
   .admin-form>div { margin-bottom: 22px; }
   .form-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .checkbox-label { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .rehearsal-setting .checkbox-label { margin-bottom: 8px; }
+  .deletion-panel { border-color: #f8717150; max-width: 880px; }
+  .deletion-panel>p { color: #b3bace; line-height: 1.8; }
+  .deletion-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 24px 0; }
+  .deletion-summary>div { padding: 14px; border-radius: 8px; background: #ffffff05; }
+  .deletion-summary dt { color: #929cb3; font-size: 14px; }
+  .deletion-summary dd { margin: 6px 0 0; font-size: 24px; font-weight: 650; }
   .event-list { display: flex; flex-direction: column; gap: 15px; }
   .event-list-item { display: flex; justify-content: space-between; align-items: center; text-decoration: none; }
   .event-list-item h2 { margin-bottom: 8px; }
@@ -306,6 +313,7 @@
   .admin-stats strong { font-size: 25px; }
   .admin-heading { flex-direction: column; align-items: flex-start; }
   .form-columns { grid-template-columns: 1fr; }
+  .deletion-summary { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .moderation-item { grid-template-columns: 1fr; }
   .moderation-form { width: 100%; }
   .audit-entry { flex-wrap: wrap; gap: 8px; }

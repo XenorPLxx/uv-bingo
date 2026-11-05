@@ -36,6 +36,10 @@ Use the event links above the hero/board to switch between voting and live event
 7. Click the `?` / `X` counters on the left to suggest a mark. Admins use the colored buttons on the right for official decisions. Both work in presentation mode; clicking a selected mark again clears it. Verify the viewer updates and old proposals stop counting.
 8. Archive the event. Create a new rehearsal event for another run; never reroll the same event.
 
+The **Wydarzenie testowe** checkbox only adds a visible label. Such events are public and use the same voting and draw rules; the checkbox does not populate sample proposals.
+
+To remove an unwanted event, open it in `/admin` and choose **Usuń wydarzenie**. Review the counts, type the event's slug and submit **Usuń trwale**. This permanently removes the event's votes, options, draw, board, suggestions and audit history. Participant accounts and data from other events remain. Archiving keeps a board available for reading; deletion removes it.
+
 Production should use a fresh event with real options/votes, not the seeded rehearsal data.
 
 ## Backup and restore
