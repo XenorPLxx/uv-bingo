@@ -25,6 +25,7 @@
   .page-container { max-width: 1600px; margin: auto; padding: 0 48px 64px; }
   .site-header { border-bottom: 1px solid #ffffff0e; }
   .header-inner { max-width: 1600px; height: 94px; padding: 0 48px; margin: auto; display: flex; justify-content: space-between; align-items: center; }
+  .mobile-navigation, .event-picker { display: none; }
   .brand { display: inline-flex; gap: 12px; align-items: center; text-decoration: none; font-weight: 900; font-size: 23px; letter-spacing: -1px; line-height: 1.1; }
   .brand-slash { color: #9c7ef4; padding: 0 5px; }
   .brand-icon { display: grid; grid-template-columns: repeat(2, 12px); gap: 4px; transform: rotate(-8deg); }
@@ -45,7 +46,7 @@
   .button.danger { background: #ef444420; border-color: #f8717150; color: #fca5a5; }
   .eyebrow { display: block; font-size: 12px; font-weight: 750; letter-spacing: 2.1px; color: #a299bc; line-height: 1.7; }
   .event-navigation { display: block; margin: 24px 0 18px; }
-  .event-navigation>.eyebrow { margin-bottom: 10px; }
+  .event-desktop>.eyebrow { margin-bottom: 10px; }
   .event-links { display: flex; flex-wrap: wrap; gap: 10px; }
   .event-link { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 12px 16px; border: 1px solid #ffffff1c; border-radius: 10px; background: #111525; text-decoration: none; font-size: 15px; }
   .event-link:hover, .event-link.current { border-color: #b9a1ff80; background: #201a33; }
@@ -265,22 +266,46 @@
 }
 @media (max-width: 760px) {
   .page-container { padding: 0 18px 30px; }
-  .header-inner { height: 76px; padding: 0 18px; }
+  .site-header { position: relative; z-index: 10; }
+  .header-inner { min-height: 64px; height: auto; padding: 10px 18px; gap: 16px; }
   .brand { font-size: 19px; }
-  nav { gap: 10px; }
-  nav .nav-link:first-child, .user-name { display: none; }
-  .nav-link { font-size: 15px; }
+  .site-header .brand { min-height: 44px; flex-shrink: 0; }
+  .desktop-navigation, .event-desktop { display: none; }
+  .mobile-navigation { display: block; }
+  .mobile-navigation>summary, .event-picker>summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; gap: 12px; list-style: none; font-size: 14px; font-weight: 600; color: #c9c3db; border-radius: 8px; }
+  .mobile-navigation>summary::-webkit-details-marker, .event-picker>summary::-webkit-details-marker { display: none; }
+  .mobile-navigation>summary { padding: 0 12px; border: 1px solid #ffffff24; background: #ffffff06; }
+  .mobile-navigation[open]>summary { color: #e5dcff; border-color: #b9a1ff80; background: #201a33; }
+  .menu-icon { width: 16px; height: 12px; border-top: 2px solid currentColor; border-bottom: 2px solid currentColor; position: relative; }
+  .menu-icon::after { content: ''; position: absolute; top: 3px; left: 0; width: 100%; border-top: 2px solid currentColor; }
+  .mobile-navigation nav { position: absolute; top: calc(100% + 6px); left: 18px; right: 18px; display: grid; gap: 4px; padding: 12px; background: #151829; border: 1px solid #b9a1ff40; border-radius: 12px; box-shadow: 0 16px 40px #0008; }
+  .mobile-navigation .nav-link { display: flex; align-items: center; min-height: 44px; padding: 8px 12px; border-radius: 6px; font-size: 16px; }
+  .mobile-navigation .nav-link:hover { background: #b9a1ff15; }
+  .mobile-navigation .user-name { max-width: 100%; padding: 8px 12px; overflow-wrap: anywhere; }
+  .mobile-navigation .button { width: 100%; min-height: 44px; }
   .button.small { font-size: 15px; padding: 9px 12px; }
-  .hero { min-height: 410px; align-items: flex-start; margin-top: 8px; }
-  .hero-copy { width: 100%; padding-top: 25px; }
-  .hero h1 { font-size: 30px; letter-spacing: -1px; margin: 15px 0; }
-  .hero p { font-size: 15px; max-width: 300px; }
-  .hero .eyebrow { font-size: 8px; letter-spacing: 1.4px; }
-  .hero-art { width: 110%; height: 280px; right: -25px; top: auto; bottom: 0; mask-image: linear-gradient(180deg,transparent,black 35%); }
-  .hero-art img { object-position: center 55%; opacity: .7; }
-  .hero-actions { margin-top: 20px; }
-  .event-strip { flex-direction: column; align-items: flex-start; padding: 15px; margin-bottom: 30px; font-size: 15px; }
-  .event-strip .tag { font-size: 7px; }
+  .event-navigation { margin: 12px 0 16px; }
+  .event-picker { display: block; border: 1px solid #ffffff1c; border-radius: 10px; background: #111525; }
+  .event-picker>summary { padding: 10px 14px; }
+  .disclosure-chevron { width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); margin: -4px 3px 0; flex-shrink: 0; }
+  .event-picker[open] .disclosure-chevron { transform: rotate(225deg); margin-top: 4px; }
+  .event-picker .event-links { display: grid; gap: 6px; padding: 0 8px 8px; }
+  .event-picker .event-link { display: grid; gap: 4px; padding: 10px 12px; min-width: 0; }
+  .event-picker .event-link strong { overflow-wrap: anywhere; }
+  .hero { min-height: 0; display: flex; flex-direction: column; align-items: stretch; margin: 0; border-radius: 0; overflow: visible; }
+  .hero::after { display: none; }
+  .hero-copy { width: 100%; padding: 16px 0 0; }
+  .hero h1 { font-size: 27px; letter-spacing: -.7px; line-height: 1.2; margin: 10px 0 12px; overflow-wrap: anywhere; }
+  .hero p { font-size: 15px; max-width: none; line-height: 1.6; }
+  .hero .eyebrow { font-size: 9px; letter-spacing: 1.2px; }
+  .hero .tiny-star { font-size: 15px; }
+  .hero-art { position: static; width: 100%; height: auto; aspect-ratio: 2.25; max-width: 480px; align-self: center; mask-image: none; border-radius: 12px; overflow: hidden; }
+  .hero-art img { object-position: center 60%; opacity: 1; }
+  .hero-actions { margin-top: 16px; }
+  .hero-actions .button { width: 100%; min-height: 44px; padding: 11px 16px; justify-content: space-between; }
+  .event-strip { flex-direction: column; align-items: stretch; gap: 8px; padding: 14px; margin: 16px 0 20px; font-size: 13px; }
+  .event-strip>div { flex-wrap: wrap; gap: 8px; }
+  .event-strip .tag { font-size: 8px; margin-left: auto; }
   .voting-layout { display: flex; flex-direction: column; gap: 25px; }
   .voting-sidebar { display: grid; grid-template-columns: 1fr; position: static; top: auto; align-self: stretch; max-height: none; overflow: visible; scrollbar-gutter: auto; padding-right: 0; }
   .option-card { grid-template-columns: 2ch minmax(0,1fr) auto; gap: 8px; padding: 10px 12px; }

@@ -1,0 +1,10 @@
+<nav aria-label="Nawigacja główna">
+  <%= link_to "Wydarzenia", root_path, class: "nav-link" %>
+  <% if current_participant&.admin? %><%= link_to "Administracja", admin_root_path, class: "nav-link" %><% end %>
+  <% if current_participant %>
+    <span class="user-name"><%= current_participant.display_name %></span>
+    <%= button_to "Wyloguj", logout_path, method: :delete, class: "button small secondary" %>
+  <% else %>
+    <%= link_to "Zaloguj się", sign_in_path, class: "button small secondary" %>
+  <% end %>
+</nav>

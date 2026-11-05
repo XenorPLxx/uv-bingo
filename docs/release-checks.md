@@ -128,3 +128,10 @@ These are clearly labeled test events. Production has configuration only and has
 - Backup failure probes cover failed dumps, invalid SQL, lock failures, temporary-file cleanup, private permissions and retention only after successful validation. Shell syntax checks and the registration script's RuboCop check pass.
 - The production deploy wrapper is unchanged and does not take a backup. Scheduled backups and optional manual snapshots are independent of deployments.
 - Both the Discord registration wrapper and Ruby script reject `global` before credentials are loaded or an API request is made. No Discord registration or application redeployment was needed for these operational changes.
+
+## Mobile header and event introduction — 5 November 2026
+
+- On phones, navigation and account actions use a compact native disclosure menu. The event picker also collapses, retaining the current-event indicator and links to every event when opened. Desktop navigation and event links stay visible.
+- The mobile hero displays the community artwork as a separate banner above the title and description. Text and the voting shortcut no longer overlap the image. The header, introductory spacing and voting-status panel are more compact, with touch targets of at least 44px for the menu and primary actions.
+- Chrome checks at 320, 360, 390, 430 and 760px confirm no page overflow, no overlap between hero artwork and text, usable menu/event controls and correct admin/member/guest navigation. Checked event switching, admin navigation, logout, guest sign-in and the desktop layout.
+- Existing website checks: 17 tests / 255 assertions. Existing voting and live-board browser journeys: 2 tests / 45 assertions. Tailwind build and diff checks pass. No database migration is required.

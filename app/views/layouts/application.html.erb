@@ -13,7 +13,16 @@
   </head>
   <body class="<%= 'presentation' if @presentation %>">
     <% unless @presentation %>
-      <header class="site-header"><div class="header-inner"><%= render "shared/brand" %><nav aria-label="Nawigacja główna"><%= link_to "Wydarzenia", root_path, class: "nav-link" %><% if current_participant&.admin? %><%= link_to "Administracja", admin_root_path, class: "nav-link" %><% end %><% if current_participant %><span class="user-name"><%= current_participant.display_name %></span><%= button_to "Wyloguj", logout_path, method: :delete, class: "button small secondary" %><% else %><%= link_to "Zaloguj się", sign_in_path, class: "button small secondary" %><% end %></nav></div></header>
+      <header class="site-header">
+        <div class="header-inner">
+          <%= render "shared/brand" %>
+          <div class="desktop-navigation"><%= render "shared/navigation" %></div>
+          <details class="mobile-navigation">
+            <summary>Menu <span class="menu-icon" aria-hidden="true"></span></summary>
+            <%= render "shared/navigation" %>
+          </details>
+        </div>
+      </header>
     <% end %>
     <main class="<%= @presentation ? 'presentation-main' : 'page-container' %>">
       <% flash.each do |type, message| %><% next if %w[voting_notice voting_alert].include?(type) %><div class="flash <%= type %>" role="<%= type == 'alert' ? 'alert' : 'status' %>"><%= message %></div><% end %>
