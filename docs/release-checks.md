@@ -114,3 +114,8 @@ These are clearly labeled test events. Production has configuration only and has
 - Added horizontal input padding and a matching autofill background/text color; the focus border remains around the entire search bar. Proposal and empty-result headings now use level two beneath the event title. Removed the unused `option_count` response and its extra count query.
 - Staging uses `bingo.testing.xenor.ovh`, with HTTP authentication and the previous `bing.testing.xenor.ovh` / `uv-bingo.testing.xenor.ovh` aliases. Production remains `bingo.xenor.ovh`; its private-server Discord relay uses the corrected staging address.
 - Application suite: 66 tests / 658 assertions. Chrome suite: 12 tests / 216 assertions. New checks exercise the actual eight-second abort, recovery through the normal fifteen-second poll with focus retained, another participant's vote while search stays focused, and Chrome's forced autofill state. RuboCop passes; Brakeman reports no warnings.
+
+## Discord command deduplication — 5 November 2026
+
+- The temporary global `/bingo` registration and the direct community-server registration both appeared in Discord. Removed only global command `1567947561598455909`, preserving the verified staging and production server commands. Discord's API confirms no global `/bingo` and exactly one server-specific `/bingo` in each server.
+- Updated setup instructions to use server-specific registration after installation. This is a Discord configuration change; the application image and participant/voting data are unchanged.
