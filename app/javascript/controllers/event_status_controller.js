@@ -17,7 +17,8 @@ export default class extends Controller {
     this.subscription = this.consumer.subscriptions.create({ channel: "EventChannel", event_id: this.eventIdValue }, {
       connected: () => { this.online = true; this.queueRefresh(0) },
       disconnected: () => { this.online = false },
-      received: ({ revision } = {}) => { if (revision !== this.revisionValue) this.queueRefresh() }
+      // Viewer count messages carry no revision and need no refresh.
+      received: ({ revision } = {}) => { if (revision !== undefined && revision !== this.revisionValue) this.queueRefresh() }
     })
     // Changes arrive over the socket. Polling covers a dropped connection or a failed search,
     // and otherwise acts as a slow safety resync.

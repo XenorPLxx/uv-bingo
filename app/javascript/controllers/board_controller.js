@@ -9,9 +9,21 @@ export default class extends Controller {
     this.lastSync = Date.now()
     this.consumer = createConsumer()
     this.subscription = this.consumer.subscriptions.create({ channel: "EventChannel", event_id: this.eventIdValue }, {
-      connected: () => { this.online = true; this.refresh() },
-      disconnected: () => { this.online = false; this.showStatus("Ponowne łączenie…") },
-      received: () => this.queueRefresh()
+      connected: () => {
+        this.online = true
+        this.subscription.perform("viewer_count")
+        this.refresh()
+      },
+      disconnected: () => {
+        this.online = false
+        this.showStatus("Ponowne łączenie…")
+        this.dispatch("viewers", { detail: { count: null } })
+      },
+      // Viewer counts only update the heading; any other message is a board change.
+      received: (data = {}) => {
+        if ("viewers" in data) this.dispatch("viewers", { detail: { count: data.viewers } })
+        else this.queueRefresh()
+      }
     })
     // Pushes carry changes. Polling covers a dropped connection and otherwise acts as a slow safety resync.
     this.timer = setInterval(() => { if (!this.online || Date.now() - this.lastSync >= 60000) this.refresh() }, 15000)

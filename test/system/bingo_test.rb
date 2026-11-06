@@ -232,8 +232,10 @@ class BingoTest < ApplicationSystemTestCase
     Voting.cast!(event: @event, participant: create_participant, option_id: options[5].id)
     assert_selector "#option-#{options[5].id}.pulse-gain"
     assert_includes page.evaluate_script("window.slides"), "option-#{options[5].id}"
+    wait_for_slides
     within("#option-#{options[8].id}") { click_button "Głosuję +1" }
     assert_selector "#option-#{options[8].id}.pulse-mine"
+    wait_for_slides
     within("#option-#{options[8].id}") { click_button "Cofnij głos" }
     assert_selector "#option-#{options[8].id}.pulse-loss"
     assert_no_selector "#option-#{options[1].id}[class*=pulse]"
@@ -549,6 +551,75 @@ class BingoTest < ApplicationSystemTestCase
     assert_equal "solid", page.evaluate_script("getComputedStyle(document.querySelector('.bingo-cell[data-position=\"0\"]')).outlineStyle")
   end
 
+  test "the live board shows how many pages have it open" do
+    seed_options(@event, 25)
+    @event.update!(closes_at: 1.second.ago)
+    BoardDraw.call(event: @event, admin: @voter)
+    @event.update!(state: "live")
+    visit event_path(@event)
+    assert_selector ".viewer-count", text: "1 oglądający"
+    page.execute_script(<<~JS)
+      window.stateRequests = 0;
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input, options) => {
+        if (new URL(input, location.origin).pathname.endsWith('/state')) window.stateRequests += 1;
+        return originalFetch(input, options);
+      };
+    JS
+    Capybara.using_session(:second_viewer) do
+      visit presentation_event_path(@event)
+      assert_text "POŁĄCZONO NA ŻYWO"
+    end
+    assert_selector ".viewer-count", text: "2 oglądających"
+    assert_equal 0, page.evaluate_script("window.stateRequests"), "A join only updates the count"
+    Capybara.using_session(:second_viewer) { visit sign_in_path }
+    assert_selector ".viewer-count", text: "1 oglądający"
+    sleep 1 # Let any incorrectly scheduled refresh run after the join/leave messages.
+    assert_equal 0, page.evaluate_script("window.stateRequests"), "A leave only updates the count"
+    page.execute_script(<<~JS)
+      window.boardController = window.Stimulus.getControllerForElementAndIdentifier(document.querySelector('#board'), 'board');
+      window.boardController.consumer.disconnect();
+    JS
+    assert_no_selector ".viewer-count"
+    page.execute_script("window.boardController.consumer.connect()")
+    assert_selector ".viewer-count", text: "1 oglądający"
+    save_screenshot(Rails.root.join("tmp/screenshots/board-viewers.png"))
+    @event.update!(state: "archived")
+    visit event_path(@event)
+    assert_no_selector ".viewer-count", visible: :all
+  end
+
+  test "voting pages count viewers without refreshing for joins and leaves" do
+    seed_options(@event, 2)
+    visit event_path(@event)
+    wait = Selenium::WebDriver::Wait.new(timeout: 5)
+    wait.until do
+      page.evaluate_script("(() => { const c = window.Stimulus.getControllerForElementAndIdentifier(document.querySelector('.voting-shell'), 'event-status'); return c?.online && !c.pushTimer && !c.refreshPromise })()")
+    end
+    assert_equal 1, EventChannel.viewers(@event.id)
+    page.execute_script(<<~JS)
+      window.stateRequests = 0;
+      window.viewerMessages = [];
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input, options) => {
+        if (new URL(input, location.origin).pathname.endsWith('/state')) window.stateRequests += 1;
+        return originalFetch(input, options);
+      };
+      const subscription = window.Stimulus.getControllerForElementAndIdentifier(document.querySelector('.voting-shell'), 'event-status').subscription;
+      const originalReceived = subscription.received.bind(subscription);
+      subscription.received = data => {
+        if ('viewers' in data) window.viewerMessages.push(data.viewers);
+        originalReceived(data);
+      };
+    JS
+    Capybara.using_session(:second_voter) { visit event_path(@event) }
+    wait.until { page.evaluate_script("window.viewerMessages.includes(2)") }
+    Capybara.using_session(:second_voter) { visit sign_in_path }
+    wait.until { page.evaluate_script("window.viewerMessages.includes(1)") }
+    sleep 1.1 # The voting controller delays refreshes by up to a second.
+    assert_equal 0, page.evaluate_script("window.stateRequests")
+  end
+
   test "phone board shows all five columns and tapping a cell opens its details and controls" do
     ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
     options = seed_options(@event, 25)
@@ -728,6 +799,14 @@ class BingoTest < ApplicationSystemTestCase
   private
 
   VISIBLE_ROWS = "Object.fromEntries(Array.from(document.querySelectorAll('.option-card')).map(row => [row.id, Math.round(row.getBoundingClientRect().top)]).filter(([, top]) => top >= 0 && top < innerHeight - 80))".freeze
+
+  # A click aimed at a row while it slides to its new place can land on a neighbour.
+  # Highlight pulses are CSS animations and do not move anything, so only slides are awaited.
+  def wait_for_slides
+    Selenium::WebDriver::Wait.new(timeout: 3).until do
+      page.evaluate_script("document.getAnimations().every(animation => animation instanceof CSSAnimation || animation.playState !== 'running')")
+    end
+  end
 
   def row_shifts(before, except:)
     after = page.evaluate_script("Object.fromEntries(Array.from(document.querySelectorAll('.option-card')).map(row => [row.id, Math.round(row.getBoundingClientRect().top)]))")
