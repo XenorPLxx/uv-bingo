@@ -57,7 +57,7 @@
   .ballot-remove { min-width: 32px; min-height: 32px; border-radius: 6px; color: #c7b5ff; font-size: 22px; }
   .ballot-remove:hover { background: #b9a1ff20; }
   .hero { position: relative; min-height: 330px; display: flex; align-items: center; margin-top: 22px; overflow: hidden; border-radius: 16px; }
-  .hero-art { position: absolute; right: -30px; top: 0; width: 78%; height: 100%; mask-image: linear-gradient(90deg, transparent 0%, black 35%); }
+  .hero-art { position: absolute; right: -100px; top: 0; height: 100%; aspect-ratio: 2.6; mask-image: linear-gradient(90deg, transparent 0%, black 22%); }
   .hero-art img { width: 100%; height: 100%; object-fit: cover; object-position: center top; opacity: .9; }
   .hero::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(0deg, #080b17, transparent 22%, transparent 90%, #080b17); }
   .hero-copy { position: relative; z-index: 1; padding: 38px 0; width: 60%; }
@@ -369,7 +369,6 @@
   .voting-layout { grid-template-columns: minmax(0,1fr) 280px; gap: 20px; }
   .hero { min-height: 330px; }
   .hero-copy { width: 65%; }
-  .hero-art { right: -100px; width: 95%; }
   .site-footer { width: auto; margin: 0 26px; }
   .bingo-grid { min-width: 0; }
 }
