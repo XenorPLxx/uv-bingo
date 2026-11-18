@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 ruby "4.0.1"
-gem "solid_cable", "~> 3.0"
+gem "solid_cable", "~> 4.1"
 gem "ed25519", "~> 1.4"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
