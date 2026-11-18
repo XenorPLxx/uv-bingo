@@ -57,7 +57,7 @@ class VotingTest < ActiveSupport::TestCase
     end
     assert_equal 5, @voter.votes_remaining(@event)
     options.first.update!(disqualified_at: Time.current)
-    OptionMerge.call(event: @event, admin: @voter, source_id: options[1].id, target_id: options[2].id, reason: "Duplikat")
+    OptionMerge.call(event: @event, admin: @voter, option_ids: [ options[1].id, options[2].id ], reason: "Duplikat")
     previous_revision = @event.reload.revision
     assert_no_difference [ "Option.count", "Vote.count" ] do
       error = assert_raises(Voting::Invalid) { Voting.cast!(event: @event, participant: @voter, text: "Propozycja 21") }

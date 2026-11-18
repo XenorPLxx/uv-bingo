@@ -100,7 +100,7 @@ module Admin
     end
 
     def merge
-      result = OptionMerge.call(event: @event, admin: current_participant, source_id: params[:source_id], target_id: params[:target_id], reason: params[:reason])
+      result = OptionMerge.call(event: @event, admin: current_participant, option_ids: params[:option_ids], reason: params[:reason])
       @event.broadcast_update!
       redirect_to admin_event_path(@event, anchor: "moderation"), notice: "Propozycje połączone. Przeniesione głosy: #{result[:transferred_votes]}. Zwrócone głosy: #{result[:returned_votes]}.", status: :see_other
     end
@@ -129,7 +129,7 @@ module Admin
         render :show, status: :unprocessable_entity
       when "moderate", "merge"
         @moderation_input = params.permit(:option_id, :text, :reason, :operation) if action_name == "moderate"
-        @merge_input = params.permit(:source_id, :target_id, :reason) if action_name == "merge"
+        @merge_input = params.permit(:reason, option_ids: []) if action_name == "merge"
         @event.reload
         prepare_show
         render :show, status: :unprocessable_entity

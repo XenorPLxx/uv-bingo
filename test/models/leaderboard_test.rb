@@ -60,9 +60,9 @@ class LeaderboardTest < ActiveSupport::TestCase
     assert_equal 10, board.visible(entries, @ala).size
   end
 
-  test "merged proposals credit the author of the retained proposal" do
+  test "merged proposals credit whoever proposed first" do
     source = Voting.cast!(event: @event, participant: @ala, text: "Duplikat pierwszej zapowiedzi").option
-    OptionMerge.call(event: @event, admin: @admin, source_id: source.id, target_id: @options[0].id, reason: "Ta sama zapowiedź")
+    OptionMerge.call(event: @event, admin: @admin, option_ids: [ source.id, @options[0].id ], reason: "Ta sama zapowiedź")
     draw_and_mark(0)
     proposers = Leaderboard.new(@event).proposers
     assert_equal [ @author_ids[0] ], proposers.map { |entry| entry.participant.id }

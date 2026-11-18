@@ -4,8 +4,8 @@ class OptionMergeTest < ActiveSupport::TestCase
   setup do
     @event = create_event
     @admin = create_participant
-    @source = @event.options.create!(participant: @admin, text: "Nowy zwiastun gry")
     @target = @event.options.create!(participant: @admin, text: "Zwiastun nowej gry")
+    @source = @event.options.create!(participant: @admin, text: "Nowy zwiastun gry")
   end
 
   test "merge combines distinct voters and refunds only people who voted for both" do
@@ -58,7 +58,7 @@ class OptionMergeTest < ActiveSupport::TestCase
     assert_no_difference "Vote.count" do
       assert_equal vote, Voting.cast!(event: @event, participant: voter, option_id: @target.id)
     end
-    final = @event.options.create!(participant: @admin, text: "Docelowa propozycja")
+    final = @event.options.create!(participant: @admin, text: "Docelowa propozycja", created_at: 1.day.ago)
     merge(source: @target, target: final)
     assert_equal final.id, @source.reload.merged_into_id
     assert_equal final.id, @target.reload.merged_into_id
@@ -68,10 +68,17 @@ class OptionMergeTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::RecordInvalid) { Voting.cast!(event: @event, participant: create_participant, text: @source.text) }
   end
 
+  test "the earlier proposal survives whichever order the admin picks" do
+    merge(source: @target, target: @source)
+    assert_equal @target.id, @source.reload.merged_into_id
+    assert_nil @target.reload.merged_into_id
+  end
+
   test "self cross event disqualified already merged and invalid reason requests change nothing" do
     foreign = create_event.options.create!(participant: @admin, text: "Z innego wydarzenia")
     assert_no_difference [ "Vote.count", "AuditEntry.count" ] do
       assert_raises(Voting::Invalid) { merge(target: @source) }
+      assert_raises(Voting::Invalid) { OptionMerge.call(event: @event, admin: @admin, option_ids: [ @source.id ], reason: "Duplikat") }
       assert_raises(ActiveRecord::RecordNotFound) { merge(target: foreign) }
       assert_raises(ActiveRecord::RecordNotFound) { merge(source: foreign) }
       assert_raises(Voting::Invalid) { merge(reason: " ") }
@@ -112,7 +119,7 @@ class OptionMergeTest < ActiveSupport::TestCase
     end
     other = create_event(state: "archived")
     options = 2.times.map { |i| other.options.create!(participant: @admin, text: "Typ #{i}") }
-    assert_raises(Voting::Invalid) { OptionMerge.call(event: other, admin: @admin, source_id: options.first.id, target_id: options.last.id, reason: "Duplikat") }
+    assert_raises(Voting::Invalid) { OptionMerge.call(event: other, admin: @admin, option_ids: options.map(&:id), reason: "Duplikat") }
   end
 
   test "a failed audit rolls back votes refunds and merge tracking" do
@@ -121,7 +128,7 @@ class OptionMergeTest < ActiveSupport::TestCase
     Voting.cast!(event: @event, participant: voter, option_id: @target.id)
     revision_before_merge = @event.reload.revision
     assert_raises(ActiveRecord::NotNullViolation) do
-      OptionMerge.call(event: @event, admin: Participant.new, source_id: @source.id, target_id: @target.id, reason: "Duplikat")
+      OptionMerge.call(event: @event, admin: Participant.new, option_ids: [ @source.id, @target.id ], reason: "Duplikat")
     end
     assert_equal 1, @source.votes.count
     assert_equal 1, @target.votes.count
@@ -134,6 +141,6 @@ class OptionMergeTest < ActiveSupport::TestCase
   private
 
   def merge(source: @source, target: @target, reason: "Powtarzająca się propozycja")
-    OptionMerge.call(event: @event, admin: @admin, source_id: source.id, target_id: target.id, reason: reason)
+    OptionMerge.call(event: @event, admin: @admin, option_ids: [ source.id, target.id ], reason: reason)
   end
 end

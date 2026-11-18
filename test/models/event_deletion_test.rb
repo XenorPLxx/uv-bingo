@@ -8,7 +8,7 @@ class EventDeletionTest < ActiveSupport::TestCase
     source, target = seed_options(@event, 26).first(2)
     Voting.cast!(event: @event, participant: @voter, option_id: source.id)
     Voting.cast!(event: @event, participant: @voter, option_id: target.id)
-    OptionMerge.call(event: @event, admin: @admin, source_id: source.id, target_id: target.id, reason: "Duplikat")
+    OptionMerge.call(event: @event, admin: @admin, option_ids: [ source.id, target.id ], reason: "Duplikat")
     @event.update!(closes_at: 1.second.ago)
     BoardDraw.call(event: @event, admin: @admin)
     @event.update!(state: "live")

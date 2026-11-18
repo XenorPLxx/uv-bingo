@@ -50,11 +50,11 @@ class AdminEventsTest < ActionDispatch::IntegrationTest
     assert_select "#moderation-option-#{source.id} input[name=reason][value=xx]"
     assert_select "#moderation-option-#{source.id} select[name=operation] option[value=correct][selected]"
     assert_not_equal "Zachowana korekta", source.reload.text
-    post merge_admin_event_path(@event), params: { source_id: source.id, target_id: target.id, reason: "xx" }
+    post merge_admin_event_path(@event), params: { option_ids: [ source.id, target.id ], reason: "xx" }
     assert_response :unprocessable_entity
     assert_select ".merge-panel[open] input[name=reason][value=xx]"
-    assert_select ".merge-panel select[name=source_id] option[value=?][selected]", source.id.to_s
-    assert_select ".merge-panel select[name=target_id] option[value=?][selected]", target.id.to_s
+    assert_select ".merge-panel #merge_option_a option[value=?][selected]", source.id.to_s
+    assert_select ".merge-panel #merge_option_b option[value=?][selected]", target.id.to_s
     assert_nil source.reload.merged_into_id
   end
 

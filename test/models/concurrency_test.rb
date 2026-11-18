@@ -83,12 +83,12 @@ class ConcurrencyTest < ActiveSupport::TestCase
     event = create_event
     admin = create_participant
     voter = create_participant
-    source, target = seed_options(event, 2)
+    target, source = seed_options(event, 2)
     Voting.cast!(event: event, participant: voter, option_id: source.id)
     Voting.cast!(event: event, participant: voter, option_id: target.id)
     gate = Queue.new
     operations = [
-      -> { OptionMerge.call(event: Event.find(event.id), admin: admin, source_id: source.id, target_id: target.id, reason: "Duplikat") },
+      -> { OptionMerge.call(event: Event.find(event.id), admin: admin, option_ids: [ source.id, target.id ], reason: "Duplikat") },
       -> { Voting.cast!(event: Event.find(event.id), participant: Participant.find(voter.id), option_id: source.id) }
     ]
     threads = operations.map do |operation|
@@ -111,7 +111,7 @@ class ConcurrencyTest < ActiveSupport::TestCase
     event = create_event
     admin = create_participant
     voter = create_participant
-    source, target = seed_options(event, 2)
+    target, source = seed_options(event, 2)
     Voting.cast!(event: event, participant: voter, option_id: source.id)
     Voting.cast!(event: event, participant: voter, option_id: target.id)
     gate = Queue.new
@@ -119,7 +119,7 @@ class ConcurrencyTest < ActiveSupport::TestCase
       Thread.new do
         ActiveRecord::Base.connection_pool.with_connection do
           gate.pop
-          OptionMerge.call(event: Event.find(event.id), admin: admin, source_id: source.id, target_id: target.id, reason: "Duplikat")
+          OptionMerge.call(event: Event.find(event.id), admin: admin, option_ids: [ source.id, target.id ], reason: "Duplikat")
           :merged
         rescue Voting::Invalid
           :rejected

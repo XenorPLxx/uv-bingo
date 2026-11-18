@@ -50,7 +50,7 @@ class BingoTest < ApplicationSystemTestCase
 
   test "admin merges duplicates and an open voting page updates the refunded allowance" do
     ENV["ADMIN_DISCORD_IDS"] = @voter.discord_id
-    source, target = seed_options(@event, 6).first(2)
+    target, source = seed_options(@event, 6).first(2)
     Voting.cast!(event: @event, participant: @voter, option_id: source.id)
     Voting.cast!(event: @event, participant: @voter, option_id: target.id)
     browser_sign_in(@voter)
@@ -60,8 +60,8 @@ class BingoTest < ApplicationSystemTestCase
     end
     visit admin_event_path(@event)
     find(".merge-panel > summary").click
-    select "#{source.text} · głosy: 2", from: "Propozycja do połączenia"
-    select "#{target.text} · głosy: 2", from: "Propozycja, która pozostanie"
+    select "#{source.text} · głosy: 2", from: "Propozycja A"
+    select "#{target.text} · głosy: 2", from: "Propozycja B"
     fill_in "Powód połączenia", with: "Dwie wersje tego samego pomysłu"
     accept_confirm { click_button "Połącz propozycje" }
     assert_text "Przeniesione głosy: 1. Zwrócone głosy: 1."

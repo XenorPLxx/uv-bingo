@@ -1,12 +1,13 @@
 class OptionMerge
-  def self.call(event:, admin:, source_id:, target_id:, reason:)
+  # The earliest proposal survives so its author keeps the credit.
+  def self.call(event:, admin:, option_ids:, reason:)
     event.with_lock do
       raise Voting::Invalid, "Propozycje można łączyć tylko przed losowaniem planszy." if event.draw || event.state != "collecting"
       reason = reason.to_s.strip
       raise Voting::Invalid, "Podaj powód połączenia (od 3 do 200 znaków)." unless reason.length.between?(3, 200)
-      source = event.options.find(source_id)
-      target = event.options.find(target_id)
-      raise Voting::Invalid, "Wybierz dwie różne propozycje." if source == target
+      options = Array(option_ids).map { |id| event.options.find(id) }
+      raise Voting::Invalid, "Wybierz dwie różne propozycje." unless options.size == 2 && options.uniq.size == 2
+      target, source = options.sort_by { |option| [ option.created_at, option.id ] }
       raise Voting::Invalid, "Jedna z propozycji została już połączona. Sprawdź aktualną listę." if source.merged_into_id || target.merged_into_id
       raise Voting::Invalid, "Przywróć wykluczone propozycje przed ich połączeniem." if source.disqualified_at || target.disqualified_at
 

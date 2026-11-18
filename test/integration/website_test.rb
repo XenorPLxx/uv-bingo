@@ -208,10 +208,10 @@ class WebsiteTest < ActionDispatch::IntegrationTest
   end
 
   test "only admins can merge options and merged sources cannot be restored or drawn" do
-    source, target = seed_options(@event, 2)
+    target, source = seed_options(@event, 2)
     Voting.cast!(event: @event, participant: @voter, option_id: source.id)
     Voting.cast!(event: @event, participant: @voter, option_id: target.id)
-    merge_params = { source_id: source.id, target_id: target.id, reason: "Powtórzona propozycja" }
+    merge_params = { option_ids: [ source.id, target.id ], reason: "Powtórzona propozycja" }
     sign_in_as(@voter)
     assert_no_difference "Vote.count" do
       post merge_admin_event_path(@event), params: merge_params

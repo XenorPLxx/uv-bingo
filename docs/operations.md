@@ -33,7 +33,7 @@ Public pages render [Open Graph](https://ogp.me/) and X large-image card metadat
 
 1. `/bingo` in the configured test channel, open the private link, enter staging HTTP credentials, confirm login.
 2. Add an option and vote. Each action uses one of five active slots. Withdraw a vote to free a slot; its proposal remains available. Each participant can create at most 20 proposals per event, including withdrawn, excluded and merged proposals. Reaching that cap still allows voting on existing proposals. Choices freeze when voting closes.
-3. To combine duplicates, open the event in `/admin`, expand **Połącz propozycje** under **Propozycje i wyniki**, choose the source and retained proposal, and enter a reason. The retained wording stays; double voters get one slot back. Restore excluded proposals before merging them. The source remains in the moderation history.
+3. To combine duplicates, open the event in `/admin`, expand **Połącz propozycje** under **Propozycje i wyniki**, choose the two proposals, and enter a reason. The earlier proposal and its wording stay; double voters get one slot back. Restore excluded proposals before merging them. The source remains in the moderation history.
 4. Open `/admin`; choose the rehearsal event and move its closing date into the past (after its opening date).
 5. Confirm the draw once voting is closed and at least 25 eligible proposals have votes; the button shows that count and stays disabled until both conditions hold. Record the reveal screen. Replay restarts the animation of the saved result, including during an earlier replay; reduced-motion preferences show the result immediately with an explanation.
 6. Start the live event from admin. Open presentation mode in another browser.
