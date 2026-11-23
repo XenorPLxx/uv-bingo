@@ -26,6 +26,7 @@ Rails.application.routes.draw do
         get :deletion
         get :votes
         get :voters
+        get :summary
         post :draw
         post :transition
         post :moderate

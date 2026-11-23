@@ -37,6 +37,11 @@ module Admin
         .sort_by { |participant, _| [ participant.display_name.downcase, participant.id ] }
     end
 
+    def summary
+      @summary = EventSummary.new(@event)
+      render layout: "card"
+    end
+
     def destroy
       EventDeletion.call(event: @event, confirmation: params[:confirmation])
       Rails.logger.info("Event deleted: event_id=#{@event.id} participant_id=#{current_participant.id}")

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8">
+    <title><%= content_for(:title) %></title>
+    <meta name="robots" content="noindex">
+    <%= csp_meta_tag %>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <%= stylesheet_link_tag "tailwind" %>
+  </head>
+  <body class="card-body"><%= yield %></body>
+</html>

@@ -167,4 +167,40 @@ class AdminEventsTest < ActionDispatch::IntegrationTest
     assert_redirected_to reveal_event_path(@event)
     assert_equal 25, @event.cells.count
   end
+
+  test "summary card shows the voting snapshot with the leader in the center" do
+    ala = create_participant(display_name: "Ala")
+    bartek = create_participant(display_name: "Bartek")
+    leader = Voting.cast!(event: @event, participant: ala, text: "Lider").option
+    Voting.cast!(event: @event, participant: bartek, option_id: leader.id)
+    Voting.cast!(event: @event, participant: bartek, text: "Drugie miejsce")
+    excluded = Voting.cast!(event: @event, participant: ala, text: "Wykluczona").option
+    excluded.update!(disqualified_at: Time.current, moderation_reason: "Test")
+
+    get admin_event_path(@event)
+    assert_select "a[href=?]", summary_admin_event_path(@event)
+    get summary_admin_event_path(@event)
+    assert_response :success
+    assert_select ".site-header", 0
+    assert_select ".summary-stat b" do |values|
+      assert_equal %w[4 2 2], values.first(3).map(&:text)
+    end
+    assert_select ".summary-leader strong", "Lider"
+    assert_select ".summary-leader small", "2 głosy · Ala"
+    assert_select ".summary-cell" do |cells|
+      assert_equal 25, cells.size
+      assert_match "Lider", cells[12].text
+      assert_match "Drugie miejsce", cells[0].text
+      assert_equal 23, cells.count { |cell| cell["class"].include?("free") }
+    end
+    assert_select ".summary-chip" do |chips|
+      assert_equal [ "Ala 1", "Bartek 1" ], chips.map { |chip| chip.text.squish }
+    end
+    assert_select ".summary-cta strong", "Brakuje 23 propozycji do pełnej planszy"
+    assert_no_match "Wykluczona", response.body
+
+    sign_in_as(create_participant)
+    get summary_admin_event_path(@event)
+    assert_response :forbidden
+  end
 end

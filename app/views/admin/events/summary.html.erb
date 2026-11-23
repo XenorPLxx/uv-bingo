@@ -1,0 +1,77 @@
+<% content_for :title, "Podsumowanie · #{@event.title}" %>
+<% phase = @event.phase %>
+<% voting = phase == "open" %>
+<% leader = @summary.leader %>
+<div class="summary-page">
+  <div class="summary-toolbar"><%= link_to "← Wróć do wydarzenia", admin_event_path(@event), class: "text-link" %></div>
+  <article class="summary-card">
+    <section class="summary-left">
+      <%= render "shared/brand" %>
+      <h1><% if voting %><%= voting_duration(@summary.voting_days) %> głosowania <em>za&nbsp;nami</em><% else %><%= phase_label(phase) %><% end %></h1>
+      <span class="summary-eyebrow"><%= @event.title %><% unless phase == "scheduled" %> · <%= date_span(@summary.first_day, @summary.last_day) %><% end %></span>
+
+      <div class="summary-stats">
+        <div class="summary-stat accent"><b><%= @summary.votes_count %></b><span><%= count_form(@summary.votes_count, "głos", "głosy", "głosów") %></span></div>
+        <div class="summary-stat"><b><%= @summary.voters_count %></b><span><%= count_form(@summary.voters_count, "głosujący", "głosujących", "głosujących") %></span></div>
+        <div class="summary-stat"><b><%= @summary.proposals_count %></b><span><%= count_form(@summary.proposals_count, "propozycja", "propozycje", "propozycji") %></span></div>
+        <% if voting %>
+          <% value, unit = @summary.time_left %>
+          <div class="summary-stat"><b><%= value %></b><span><%= time_left_label(value, unit) %> do końca</span></div>
+        <% else %>
+          <div class="summary-stat"><b><%= @summary.voting_days %></b><span><%= count_form(@summary.voting_days, "dzień", "dni", "dni") %> głosowania</span></div>
+        <% end %>
+      </div>
+
+      <% if leader %>
+        <div class="summary-leader">
+          <div class="summary-leader-icon" aria-hidden="true">★</div>
+          <div>
+            <span class="summary-eyebrow"><%= @summary.leader_tied? ? "Remis na prowadzeniu" : "Prowadzi · środek planszy" %></span>
+            <strong><%= leader.option.text %></strong>
+            <small><b><%= votes_label(leader.votes) %></b> · <%= leader.option.participant.display_name %></small>
+          </div>
+        </div>
+      <% end %>
+
+      <% if @summary.authors.any? %>
+        <div class="summary-authors">
+          <span class="summary-eyebrow">Najwięcej propozycji</span>
+          <div class="summary-chips"><% @summary.authors.each do |author| %><span class="summary-chip"><%= author.name %> <i><%= author.count %></i></span><% end %></div>
+        </div>
+      <% end %>
+
+      <% if voting || phase == "scheduled" %>
+        <div class="summary-cta">
+          <% if phase == "scheduled" %>
+            <strong>Głosowanie od <%= long_time(@event.opens_at) %></strong>
+            <p><code>/<%= ENV.fetch("DISCORD_COMMAND", "bingo") %></code> na Discordzie</p>
+          <% else %>
+            <strong><% if @summary.missing.positive? %>Brakuje <em><%= @summary.missing %> propozycji</em> do pełnej planszy<% else %>Plansza pełna, liczy się każdy głos<% end %></strong>
+            <p><code>/<%= ENV.fetch("DISCORD_COMMAND", "bingo") %></code> na Discordzie <span class="summary-dot"></span> głosowanie do <%= long_time(@event.closes_at) %></p>
+          <% end %>
+        </div>
+      <% end %>
+    </section>
+
+    <section class="summary-right">
+      <div class="summary-board-head">
+        <span class="summary-eyebrow"><%= voting || phase == "scheduled" ? "Plansza na dziś" : "Najwięcej głosów" %></span>
+        <span><b><%= @summary.ranked.size %></b> / <%= EventSummary::BOARD_SIZE %> pól</span>
+      </div>
+      <div class="summary-segments" aria-hidden="true"><% EventSummary::BOARD_SIZE.times do |index| %><i class="<%= 'filled' if index < @summary.ranked.size %>"></i><% end %></div>
+      <div class="summary-grid">
+        <% @summary.board.each_with_index do |tile, position| %>
+          <% if tile %>
+            <div class="summary-cell heat-<%= @summary.heat(tile) %> <%= 'center' if position == EventSummary::CENTER %> <%= 'podium' if tile.place.between?(2, 4) %>">
+              <% if position == EventSummary::CENTER %><span class="summary-cell-star" aria-hidden="true">★</span><% end %>
+              <div class="summary-cell-text"><span><%= tile.option.text %></span></div>
+              <div class="summary-cell-foot"><span><%= tile.option.participant.display_name %></span><b><%= votes_label(tile.votes) %></b></div>
+            </div>
+          <% else %>
+            <div class="summary-cell free"><span aria-hidden="true">+</span></div>
+          <% end %>
+        <% end %>
+      </div>
+    </section>
+  </article>
+</div>

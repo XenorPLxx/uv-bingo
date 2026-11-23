@@ -38,13 +38,14 @@ module ApplicationHelper
   end
 
   # Polish count forms: 1 głos, 2–4 głosy (except 12–14), otherwise głosów.
-  def count_label(count, one, few, many)
-    form = if count == 1 then one
+  def count_form(count, one, few, many)
+    if count == 1 then one
     elsif (2..4).cover?(count % 10) && !(12..14).cover?(count % 100) then few
     else many
     end
-    "#{count} #{form}"
   end
+
+  def count_label(count, one, few, many) = "#{count} #{count_form(count, one, few, many)}"
 
   def votes_label(count) = count_label(count, "głos", "głosy", "głosów")
 

@@ -3,6 +3,7 @@ require "test_helper"
 class DisplayHelpersTest < ActionView::TestCase
   include ApplicationHelper
   include AuditHelper
+  include SummaryHelper
 
   test "Polish vote counts use the right plural form" do
     expected = { 0 => "0 głosów", 1 => "1 głos", 2 => "2 głosy", 4 => "4 głosy", 5 => "5 głosów", 11 => "11 głosów",
@@ -26,5 +27,18 @@ class DisplayHelpersTest < ActionView::TestCase
     assert_equal "Połączenie: „A” → „B” (duplikat)", audit_summary(entry.("merge_options", {
       "source" => { "text" => "A" }, "target" => { "text" => "B" }, "reason" => "duplikat" }))
     assert_equal "Losowanie planszy", audit_summary(entry.("draw", {}))
+  end
+
+  test "summary card dates and durations read naturally" do
+    assert_equal "17–23 listopada", date_span(Date.new(2026, 11, 17), Date.new(2026, 11, 23))
+    assert_equal "28 listopada – 2 grudnia", date_span(Date.new(2026, 11, 28), Date.new(2026, 12, 2))
+    assert_equal "17 listopada", date_span(Date.new(2026, 11, 17), Date.new(2026, 11, 17))
+    assert_equal "Tydzień", voting_duration(7)
+    assert_equal "Dwa tygodnie", voting_duration(14)
+    assert_equal "1 dzień", voting_duration(1)
+    assert_equal "5 dni", voting_duration(5)
+    assert_equal "10 grudnia, 20:00", long_time(Time.utc(2026, 12, 10, 19))
+    assert_equal "godziny", time_left_label(3, :hours)
+    assert_equal "dzień", time_left_label(1, :days)
   end
 end
